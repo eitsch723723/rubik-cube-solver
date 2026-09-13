@@ -1,0 +1,93 @@
+name: Apply German face labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/german-labels.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Replace visible English face notation with German labels
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app = Path('app.js')
+          text = app.read_text(encoding='utf-8')
+
+          marker = "const SOLVER_CDN='https://cdn.jsdelivr.net/gh/cs0x7f/min2phase.js@master/min2phase.js';\n"
+          if "const FACE_DISPLAY=" not in text:
+              text = text.replace(marker, marker + "const FACE_DISPLAY={F:'V',R:'R',B:'H',L:'L',U:'O',D:'U'};\n", 1)
+
+          if "function faceLabel(face)" not in text:
+              text = text.replace("const PALETTE={", "function faceLabel(face){return FACE_DISPLAY[face]||face;}\nfunction moveLabel(move){return move?faceLabel(move[0])+move.slice(1):'';}\n\nconst PALETTE={", 1)
+
+          replacements = {
+              "Oben (U)": "Oben (O)",
+              "Hinten (B)": "Hinten (H)",
+              "Vorne (F)": "Vorne (V)",
+              "Unten (D)": "Unten (U)",
+              "$('currentFaceTitle').textContent=`${info.name} (${f})`;": "$('currentFaceTitle').textContent=`${info.name} (${faceLabel(f)})`;",
+              "const l=document.createElement('b');l.className='mini-label';l.textContent=f;d.appendChild(l);return d;": "const l=document.createElement('b');l.className='mini-label';l.textContent=faceLabel(f);d.appendChild(l);return d;",
+              "row.innerHTML=`<span>${FACE_INFO[f].name} (${f})</span>": "row.innerHTML=`<span>${FACE_INFO[f].name} (${faceLabel(f)})</span>",
+              "const l=document.createElement('b');l.className='flat-label';l.textContent=f;d.appendChild(l);host.appendChild(d);": "const l=document.createElement('b');l.className='flat-label';l.textContent=faceLabel(f);d.appendChild(l);host.appendChild(d);",
+              "s.textContent=`${i+1}. ${m}`;": "s.textContent=`${i+1}. ${moveLabel(m)}`;",
+              "$('moveTitle').textContent='Jetzt: '+m;": "$('moveTitle').textContent='Jetzt: '+moveLabel(m);",
+              "$('moveBadge').textContent=m;": "$('moveBadge').textContent=moveLabel(m);",
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+
+          app.write_text(text, encoding='utf-8')
+
+          index = Path('index.html')
+          html = index.read_text(encoding='utf-8')
+          html = html.replace('Vorne (F)', 'Vorne (V)')
+          old_note = "<p class=\"notation\">Ohne Zeichen: <strong>im Uhrzeigersinn</strong>. <code>'</code>: <strong>gegen den Uhrzeigersinn</strong>. <code>2</code>: 180°.</p>"
+          new_note = "<p class=\"notation\"><strong>Seiten:</strong> V = Vorne, H = Hinten, O = Oben, U = Unten, L = Links, R = Rechts. Ohne Zeichen: <strong>im Uhrzeigersinn</strong>. <code>'</code>: <strong>gegen den Uhrzeigersinn</strong>. <code>2</code>: 180°.</p>"
+          html = html.replace(old_note, new_note)
+          index.write_text(html, encoding='utf-8')
+
+      - name: Validate JavaScript and UI labels
+        run: |
+          node --check app.js
+          python - <<'PY'
+          from pathlib import Path
+          app = Path('app.js').read_text(encoding='utf-8')
+          html = Path('index.html').read_text(encoding='utf-8')
+          required = [
+              "FACE_DISPLAY={F:'V',R:'R',B:'H',L:'L',U:'O',D:'U'}",
+              "function moveLabel(move)",
+              "l.textContent=faceLabel(f)",
+              "moveLabel(m)",
+              "Oben (O)", "Hinten (H)", "Vorne (V)", "Unten (U)"
+          ]
+          for item in required:
+              assert item in app, item
+          assert 'Vorne (V)' in html
+          assert 'V = Vorne, H = Hinten, O = Oben, U = Unten, L = Links, R = Rechts' in html
+          print('German UI label checks passed')
+          PY
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet -- app.js index.html; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js index.html
+          git commit -m 'Use German face labels in UI'
+          git push
