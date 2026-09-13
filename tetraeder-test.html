@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7fb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Zauberpuzzle – Tetraeder Test</title>
+  <link rel="stylesheet" href="./tetraeder-test.css?v=20260913-1">
+</head>
+<body>
+<div class="test-banner">TESTVERSION – der bestehende 3×3-Würfel bleibt unverändert</div>
+<div class="app" id="app">
+  <section class="chooser" id="chooser">
+    <div class="chooser-head">
+      <h1>Welches Puzzle möchtest du lösen?</h1>
+      <p>Tippe auf das Puzzle, das vor dir liegt.</p>
+    </div>
+    <div class="puzzle-grid">
+      <button class="puzzle-card" id="chooseCube" type="button">
+        <span class="cube-preview" aria-hidden="true"><i class="cube-face cube-front"></i><i class="cube-face cube-right"></i><i class="cube-face cube-top"></i></span>
+        <strong>Rubik Cube</strong><small>3×3 Zauberwürfel</small>
+      </button>
+      <button class="puzzle-card" id="choosePyra" type="button">
+        <span class="pyra-preview" aria-hidden="true"><i class="pyra-face pf1"></i><i class="pyra-face pf2"></i><i class="pyra-face pf3"></i></span>
+        <strong>Rubik Tetraeder</strong><small>Pyraminx</small>
+      </button>
+    </div>
+    <p class="chooser-note">Der Cube öffnet die bestehende App. Der Tetraeder öffnet die neue Test-GUI.</p>
+  </section>
+
+  <section class="pyra-app" id="pyraApp" hidden>
+    <header>
+      <div><h1>Rubik Tetraeder lösen</h1><p>Gib die vier Dreiecksflächen ein. Danach führe ich dich Zug für Zug.</p></div>
+      <div class="header-actions"><button class="btn" id="backHome" type="button">Puzzle wählen</button><button class="btn danger" id="resetBtn" type="button">Neu beginnen</button></div>
+    </header>
+    <div class="status" role="status" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Bereit.</span></div>
+
+    <main id="inputView" class="input-view">
+      <nav class="face-tabs" id="faceTabs" aria-label="Tetraederflächen"></nav>
+      <div class="layout">
+        <section class="panel input-panel">
+          <div class="input-head"><div><small>Diese Fläche gibst du jetzt ein</small><h2 id="faceTitle">Vorne</h2></div><div class="progress" id="faceProgress">0/9</div></div>
+          <p class="orientation" id="orientationText"></p>
+          <div class="triangle-editor" id="triangleEditor" aria-label="Tetraederfläche"></div>
+          <div class="palette" id="palette"></div>
+          <div class="counts" id="counts"></div>
+          <div class="validation" id="validation" aria-live="polite"></div>
+          <div class="nav-row"><button class="btn" id="prevFace" type="button">← Zurück</button><button class="btn" id="clearFace" type="button">Fläche leeren</button><button class="btn primary" id="nextFace" type="button">Weiter →</button><button class="btn primary" id="solveBtn" type="button" hidden>Tetraeder lösen</button></div>
+        </section>
+        <aside class="panel help-panel">
+          <h3>So hältst du den Tetraeder</h3>
+          <div class="hold-pyra" aria-hidden="true"><div class="hold-face h-front">V</div><div class="hold-face h-left">L</div><div class="hold-face h-right">R</div></div>
+          <p id="holdHelp">Die Spitze zeigt nach oben. Die Fläche „Vorne“ zeigt zu dir.</p>
+          <h3>Testfälle</h3>
+          <div class="test-buttons"><button class="btn small" id="knownTest" type="button">4-Zug-Test</button><button class="btn small" id="solvedTest" type="button">Gelöst</button><button class="btn small" id="invalidTest" type="button">Unmöglich</button></div>
+          <p class="small-note">Die Testversion löst Zustände, die mit den vier Hauptzügen U/R/L/B entstanden sind. Unabhängig verdrehte Spitzen werden als nicht erreichbar erkannt; die vollständige Spitzenlogik ist der nächste Integrationsschritt.</p>
+        </aside>
+      </div>
+    </main>
+
+    <main id="solveView" class="solve-view" hidden>
+      <div class="solve-layout">
+        <section class="panel instruction-panel">
+          <small id="stepCount">Start</small><h2 id="moveTitle">Los geht's</h2><p id="moveDescription"></p>
+          <div class="move-badge" id="moveBadge">–</div>
+          <div class="controls"><button class="btn" id="backStep" type="button">← Letzten Zug zurück</button><button class="btn primary" id="nextStep" type="button">Diesen Zug habe ich gemacht →</button><button class="btn" id="editBtn" type="button">Farben ändern</button></div>
+          <div class="solution-list" id="solutionList"></div>
+        </section>
+        <section class="panel visual-panel">
+          <div class="direction-card" id="directionCard">Start</div>
+          <div class="tetra-scene" id="tetraScene" aria-label="3D-Hinweis für den aktuellen Tetraederzug">
+            <div class="tetra-body"><div class="tri-face tf-front"></div><div class="tri-face tf-left"></div><div class="tri-face tf-right"></div><div class="turn-cap" id="turnCap"></div></div>
+          </div>
+          <button class="btn" id="replayBtn" type="button">Animation neu starten</button>
+          <div class="flat-pyra" id="flatPyra"></div>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+<script src="./tetraeder-test.js?v=20260913-1" defer></script>
+</body>
+</html>
