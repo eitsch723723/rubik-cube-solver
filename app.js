@@ -4,15 +4,19 @@ const FACE_ORDER=['F','R','B','L','U','D'];
 const SOLVER_ORDER=['U','R','F','D','L','B'];
 const SOLVED='UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
 const SOLVER_CDN='https://cdn.jsdelivr.net/gh/cs0x7f/min2phase.js@master/min2phase.js';
+const FACE_DISPLAY={F:'V',R:'R',B:'H',L:'L',U:'O',D:'U'};
 
 const FACE_INFO={
-  F:{name:'Vorne',note:'Halte den Würfel so, dass diese Seite zu dir zeigt. Merke dir: Das ist ab jetzt deine Vorderseite.',neighbors:{top:'Oben (U)',right:'Rechts (R)',bottom:'Unten (D)',left:'Links (L)'}},
-  R:{name:'Rechts',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die rechte Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (U)',right:'Hinten (B)',bottom:'Unten (D)',left:'Vorne (F)'}},
-  B:{name:'Hinten',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel um 180°, sodass die Rückseite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (U)',right:'Links (L)',bottom:'Unten (D)',left:'Rechts (R)'}},
-  L:{name:'Links',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die linke Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (U)',right:'Vorne (F)',bottom:'Unten (D)',left:'Hinten (B)'}},
-  U:{name:'Oben',note:'Schau direkt auf die obere Seite. Hinten (B) muss über den Kästchen stehen und Vorne (F) darunter.',neighbors:{top:'Hinten (B)',right:'Rechts (R)',bottom:'Vorne (F)',left:'Links (L)'}},
-  D:{name:'Unten',note:'Schau direkt auf die Unterseite. Vorne (F) muss über den Kästchen stehen und Hinten (B) darunter.',neighbors:{top:'Vorne (F)',right:'Rechts (R)',bottom:'Hinten (B)',left:'Links (L)'}}
+  F:{name:'Vorne',note:'Halte den Würfel so, dass diese Seite zu dir zeigt. Merke dir: Das ist ab jetzt deine Vorderseite.',neighbors:{top:'Oben (O)',right:'Rechts (R)',bottom:'Unten (U)',left:'Links (L)'}},
+  R:{name:'Rechts',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die rechte Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Hinten (H)',bottom:'Unten (U)',left:'Vorne (V)'}},
+  B:{name:'Hinten',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel um 180°, sodass die Rückseite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Links (L)',bottom:'Unten (U)',left:'Rechts (R)'}},
+  L:{name:'Links',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die linke Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Vorne (V)',bottom:'Unten (U)',left:'Hinten (H)'}},
+  U:{name:'Oben',note:'Schau direkt auf die obere Seite. Hinten (H) muss über den Kästchen stehen und Vorne (V) darunter.',neighbors:{top:'Hinten (H)',right:'Rechts (R)',bottom:'Vorne (V)',left:'Links (L)'}},
+  D:{name:'Unten',note:'Schau direkt auf die Unterseite. Vorne (V) muss über den Kästchen stehen und Hinten (H) darunter.',neighbors:{top:'Vorne (V)',right:'Rechts (R)',bottom:'Hinten (H)',left:'Links (L)'}}
 };
+
+function faceLabel(face){return FACE_DISPLAY[face]||face;}
+function moveLabel(move){return move?faceLabel(move[0])+move.slice(1):'';}
 
 const PALETTE={
   white:{label:'Weiß',hex:'#f7f7f2'},yellow:{label:'Gelb',hex:'#ffd500'},red:{label:'Rot',hex:'#d92d20'},
@@ -90,7 +94,7 @@ function renderPalette(){
 }
 function renderFaceEditor(){
   const f=state.currentFace,info=FACE_INFO[f];
-  $('currentFaceTitle').textContent=`${info.name} (${f})`; $('orientationNote').textContent=info.note;
+  $('currentFaceTitle').textContent=`${info.name} (${faceLabel(f)})`; $('orientationNote').textContent=info.note;
   $('neighborTop').textContent='↑ '+info.neighbors.top; $('neighborRight').textContent=info.neighbors.right+' →';
   $('neighborBottom').textContent='↓ '+info.neighbors.bottom; $('neighborLeft').textContent='← '+info.neighbors.left;
   $('faceProgress').textContent=state.faces[f].filter(Boolean).length+'/9';
@@ -119,14 +123,14 @@ function renderCounts(){
 function makeMiniFace(f,cls){
   const d=document.createElement('div');d.className='mini-face '+cls+(f===state.currentFace?' current':'');
   state.faces[f].forEach(c=>{const s=document.createElement('span');if(c)s.style.background=PALETTE[c].hex;d.appendChild(s);});
-  const l=document.createElement('b');l.className='mini-label';l.textContent=f;d.appendChild(l);return d;
+  const l=document.createElement('b');l.className='mini-label';l.textContent=faceLabel(f);d.appendChild(l);return d;
 }
 function renderReference(){
   const host=$('referenceNet');host.innerHTML='';const pos={U:'net-u',L:'net-l',F:'net-f',R:'net-r',B:'net-b',D:'net-d'};
   ['U','L','F','R','B','D'].forEach(f=>host.appendChild(makeMiniFace(f,pos[f])));
   const ch=$('centerMap');ch.innerHTML='';const cc={};FACE_ORDER.forEach(f=>{const c=state.faces[f][4];if(c)cc[c]=(cc[c]||0)+1;});
   FACE_ORDER.forEach(f=>{const c=state.faces[f][4],bad=c&&cc[c]>1;const row=document.createElement('div');row.className='center-row'+(bad?' bad':'');
-    row.innerHTML=`<span>${FACE_INFO[f].name} (${f})</span><span><i class="center-dot" style="background:${c?PALETTE[c].hex:'#eaecf0'}"></i>${c?PALETTE[c].label+(bad?' – doppelt':''):'fehlt'}</span>`;ch.appendChild(row);});
+    row.innerHTML=`<span>${FACE_INFO[f].name} (${faceLabel(f)})</span><span><i class="center-dot" style="background:${c?PALETTE[c].hex:'#eaecf0'}"></i>${c?PALETTE[c].label+(bad?' – doppelt':''):'fehlt'}</span>`;ch.appendChild(row);});
 }
 function renderNav(){
   const i=FACE_ORDER.indexOf(state.currentFace),complete=allFilled();
@@ -232,12 +236,12 @@ function render3D(auto=true){state.animationToken++;const host=$('cube3d');host.
   const cam={F:'rotateX(-22deg) rotateY(30deg)',R:'rotateX(-20deg) rotateY(-62deg)',B:'rotateX(-20deg) rotateY(148deg)',L:'rotateX(-20deg) rotateY(118deg)',U:'rotateX(-69deg) rotateY(28deg)',D:'rotateX(58deg) rotateY(28deg)'};host.style.transform=m?cam[m[0]]:cam.F;
   const ar=$('turnArrow');ar.className='turn-arrow';if(m){if(m.endsWith("'"))ar.classList.add('ccw');if(m.endsWith('2'))ar.classList.add('half');ar.classList.add('show');if(auto)playAnimation(m,380);}$('replayBtn').disabled=!m;
 }
-function renderFlat(){const host=$('flatNet');host.innerHTML='';const pos={U:'net-u',L:'net-l',F:'net-f',R:'net-r',B:'net-b',D:'net-d'},facelet=currentFacelet(),m=currentMove();['U','L','F','R','B','D'].forEach(f=>{const d=document.createElement('div');d.className='flat-face '+pos[f]+(m&&m[0]===f?' current':'');const off=SOLVER_ORDER.indexOf(f)*9;for(let i=0;i<9;i++){const s=document.createElement('span');s.style.background=faceletColor(facelet[off+i]);d.appendChild(s);}const l=document.createElement('b');l.className='flat-label';l.textContent=f;d.appendChild(l);host.appendChild(d);});}
-function renderSolutionList(){const host=$('solutionList');host.innerHTML='';state.solutionMoves.forEach((m,i)=>{const s=document.createElement('span');s.className='move-chip'+(i<state.currentStep?' done':i===state.currentStep?' current':'');s.textContent=`${i+1}. ${m}`;host.appendChild(s);});}
+function renderFlat(){const host=$('flatNet');host.innerHTML='';const pos={U:'net-u',L:'net-l',F:'net-f',R:'net-r',B:'net-b',D:'net-d'},facelet=currentFacelet(),m=currentMove();['U','L','F','R','B','D'].forEach(f=>{const d=document.createElement('div');d.className='flat-face '+pos[f]+(m&&m[0]===f?' current':'');const off=SOLVER_ORDER.indexOf(f)*9;for(let i=0;i<9;i++){const s=document.createElement('span');s.style.background=faceletColor(facelet[off+i]);d.appendChild(s);}const l=document.createElement('b');l.className='flat-label';l.textContent=faceLabel(f);d.appendChild(l);host.appendChild(d);});}
+function renderSolutionList(){const host=$('solutionList');host.innerHTML='';state.solutionMoves.forEach((m,i)=>{const s=document.createElement('span');s.className='move-chip'+(i<state.currentStep?' done':i===state.currentStep?' current':'');s.textContent=`${i+1}. ${moveLabel(m)}`;host.appendChild(s);});}
 function renderPlayback(){const total=state.solutionMoves.length,m=currentMove();$('backStepBtn').disabled=state.currentStep===0;$('nextStepBtn').disabled=state.currentStep>=total;$('directionCard').classList.remove('done');
   if(total===0){$('stepCount').textContent='0 Züge nötig';$('moveTitle').textContent='Schon gelöst';$('moveDescription').textContent='Du musst nichts drehen.';$('moveBadge').textContent='✓';$('directionCard').textContent='Schon gelöst';$('directionCard').classList.add('done');$('finishedBox').classList.add('show');}
   else if(state.currentStep>=total){$('stepCount').textContent=`${total} von ${total} Zügen geschafft`;$('moveTitle').textContent='Geschafft!';$('moveDescription').textContent='Du hast alle Züge bestätigt.';$('moveBadge').textContent='✓';$('directionCard').textContent='Geschafft – der Würfel ist gelöst';$('directionCard').classList.add('done');$('finishedBox').classList.add('show');}
-  else{$('stepCount').textContent=`Zug ${state.currentStep+1} von ${total}`;$('moveTitle').textContent='Jetzt: '+m;$('moveDescription').textContent=describeMove(m)+' Die Animation wiederholt sich, bis du den Zug bestätigst.';$('moveBadge').textContent=m;$('directionCard').textContent=directionText(m);$('finishedBox').classList.remove('show');}
+  else{$('stepCount').textContent=`Zug ${state.currentStep+1} von ${total}`;$('moveTitle').textContent='Jetzt: '+moveLabel(m);$('moveDescription').textContent=describeMove(m)+' Die Animation wiederholt sich, bis du den Zug bestätigst.';$('moveBadge').textContent=moveLabel(m);$('directionCard').textContent=directionText(m);$('finishedBox').classList.remove('show');}
   renderSolutionList();render3D();renderFlat();fitViewport();
 }
 function showSolve(){document.body.classList.add('solving');$('inputView').hidden=true;$('solveView').hidden=false;renderPlayback();}
