@@ -1,0 +1,66 @@
+'use strict';
+const $=id=>document.getElementById(id);
+const FACES=[
+  {key:'F',name:'Vorne',short:'V',note:'Halte eine Spitze nach oben. Diese Dreiecksfläche zeigt zu dir.'},
+  {key:'L',name:'Links',short:'L',note:'Drehe den ganzen Tetraeder nach rechts, bis die linke Fläche zu dir zeigt. Die obere Spitze bleibt oben.'},
+  {key:'R',name:'Rechts',short:'R',note:'Gehe zurück zur Vorderseite und drehe nach links, bis die rechte Fläche zu dir zeigt. Die obere Spitze bleibt oben.'},
+  {key:'D',name:'Unten',short:'U',note:'Kippe den Tetraeder so, dass du direkt auf die Unterseite schaust. Die frühere Vorderkante zeigt zu dir.'}
+];
+const PALETTE={green:{label:'Grün',hex:'#079455',code:'g'},red:{label:'Rot',hex:'#d92d20',code:'r'},blue:{label:'Blau',hex:'#175cd3',code:'b'},yellow:{label:'Gelb',hex:'#ffd500',code:'y'}};
+const COLOR_KEYS=Object.keys(PALETTE),MOVES=['U',"U'",'R',"R'",'L',"L'",'B',"B'"];
+const SOLVED='gggggggggrrrrrrrrrbbbbbbbbbyyyyyyyyy';
+const KNOWN='gggyggrggrrrbrrrrrbgbbbbbbbyyyyyygyy';
+const INVALID='rgggggggggrrrrrrrrbbbbbbbbbyyyyyyyyy';
+const TRI_POS=[[41,3,0],[31,22,0],[41,22,1],[51,22,0],[21,42,0],[31,42,1],[41,42,0],[51,42,1],[61,42,0]];
+const state={faces:Array.from({length:4},()=>Array(9).fill(null)),currentFace:0,selected:'green',solution:[],states:[],step:0,animToken:0,testMode:null};
+function setStatus(text,kind=''){$('statusText').textContent=text;$('statusDot').className='status-dot'+(kind?' '+kind:'')}
+function setValidation(text='',kind=''){const e=$('validation');e.textContent=text;e.className='validation'+(kind?' '+kind:'')}
+function counts(){const c=Object.fromEntries(COLOR_KEYS.map(k=>[k,0]));state.faces.flat().forEach(x=>{if(x)c[x]++});return c}
+function allFilled(){return state.faces.every(f=>f.every(Boolean))}
+function save(){try{localStorage.setItem('rubik-pyra-test-v1',JSON.stringify({faces:state.faces,currentFace:state.currentFace,selected:state.selected}))}catch{}}
+function load(){try{const x=JSON.parse(localStorage.getItem('rubik-pyra-test-v1')||'null');if(!x)return;if(Array.isArray(x.faces)&&x.faces.length===4)x.faces.forEach((f,i)=>{if(Array.isArray(f)&&f.length===9)state.faces[i]=f.map(c=>COLOR_KEYS.includes(c)?c:null)});if(Number.isInteger(x.currentFace)&&x.currentFace>=0&&x.currentFace<4)state.currentFace=x.currentFace;if(COLOR_KEYS.includes(x.selected))state.selected=x.selected}catch{}}
+function renderTabs(){const h=$('faceTabs');h.innerHTML='';FACES.forEach((f,i)=>{const n=state.faces[i].filter(Boolean).length,b=document.createElement('button');b.className='face-tab'+(i===state.currentFace?' active':'')+(n===9?' complete':'');b.innerHTML=`<strong>${i+1}. ${f.name}</strong><small>${n===9?'fertig':n+'/9'}</small>`;b.onclick=()=>{state.currentFace=i;save();renderInput()};h.appendChild(b)})}
+function renderTriangle(){const h=$('triangleEditor');h.innerHTML='';const f=FACES[state.currentFace];$('faceTitle').textContent=`${f.name} (${f.short})`;$('orientationText').textContent=f.note;$('faceProgress').textContent=state.faces[state.currentFace].filter(Boolean).length+'/9';state.faces[state.currentFace].forEach((c,i)=>{const b=document.createElement('button'),p=TRI_POS[i];b.type='button';b.className='tri-sticker'+(p[2]?' down':'');b.style.left=p[0]+'%';b.style.top=p[1]+'%';if(c)b.style.background=PALETTE[c].hex;b.setAttribute('aria-label',`${f.name}, Feld ${i+1}, ${c?PALETTE[c].label:'leer'}`);b.onclick=()=>{const co=counts(),old=state.faces[state.currentFace][i];if(old!==state.selected&&co[state.selected]>=9){setValidation(`${PALETTE[state.selected].label} ist schon 9-mal eingetragen.`);return}state.faces[state.currentFace][i]=state.selected;state.testMode=null;setValidation();save();renderInput()};h.appendChild(b)})}
+function renderPalette(){const h=$('palette');h.innerHTML='';COLOR_KEYS.forEach(k=>{const b=document.createElement('button');b.className='palette-btn'+(k===state.selected?' active':'');b.innerHTML=`<span class="swatch" style="background:${PALETTE[k].hex}"></span>${PALETTE[k].label}`;b.onclick=()=>{state.selected=k;save();renderPalette()};h.appendChild(b)});const b=document.createElement('button');b.className='palette-btn';b.innerHTML='<span class="swatch">×</span>Löschen';b.onclick=()=>{state.faces[state.currentFace]=state.faces[state.currentFace].map(()=>null);save();renderInput()};h.appendChild(b)}
+function renderCounts(){const c=counts(),h=$('counts');h.innerHTML='';COLOR_KEYS.forEach(k=>{const d=document.createElement('span');d.className='count'+(c[k]===9?' good':c[k]>9?' bad':'');d.textContent=`${PALETTE[k].label}: ${c[k]}/9`;h.appendChild(d)})}
+function renderNav(){const i=state.currentFace,filled=state.faces[i].every(Boolean);$('prevFace').disabled=i===0;$('nextFace').hidden=i===3;$('nextFace').disabled=!filled;$('solveBtn').hidden=!(i===3||allFilled());$('solveBtn').disabled=!allFilled()}
+function renderInput(){renderTabs();renderTriangle();renderPalette();renderCounts();renderNav()}
+function toStringState(){return state.faces.flat().map(k=>k?PALETTE[k].code:'?').join('')}
+function fromStringState(s){const byCode=Object.fromEntries(COLOR_KEYS.map(k=>[PALETTE[k].code,k]));state.faces=Array.from({length:4},(_,fi)=>Array.from({length:9},(_,i)=>byCode[s[fi*9+i]]));state.currentFace=0;save();renderInput()}
+function validateBasic(){if(!allFilled())return 'Es fehlen noch Farben.';const c=counts(),bad=COLOR_KEYS.filter(k=>c[k]!==9);if(bad.length)return 'Jede der vier Farben muss genau 9-mal vorkommen.';return null}
+function cycle(a,x,y,z){const t=a[x];a[x]=a[y];a[y]=a[z];a[z]=t}
+function quarter(s,face){const a=s.split('');if(face==='U'){const x=a.slice(0,4);a.splice(0,4,...a.slice(18,22));a.splice(18,4,...a.slice(9,13));a.splice(9,4,...x)}else if(face==='R'){[[3,33,24],[6,28,19],[7,32,23],[8,31,22]].forEach(v=>cycle(a,...v))}else if(face==='L'){[[1,15,33],[4,17,35],[5,16,34],[6,12,30]].forEach(v=>cycle(a,...v))}else{[[10,24,30],[13,26,27],[14,25,29],[15,21,28]].forEach(v=>cycle(a,...v))}return a.join('')}
+function applyMove(s,m){let n=m.endsWith("'")?2:1;while(n--)s=quarter(s,m[0]);return s}
+function inverse(m){return m.endsWith("'")?m[0]:m+"'"}
+function permutations(a){if(a.length<=1)return[a];const out=[];a.forEach((x,i)=>permutations(a.slice(0,i).concat(a.slice(i+1))).forEach(p=>out.push([x,...p])));return out}
+function goalsFor(s){return permutations([...new Set(s)]).map(p=>p.map(c=>c.repeat(9)).join(''))}
+function solveBidirectional(start,maxDepth=11){const goals=goalsFor(start);if(goals.includes(start))return[];const fm=new Map([[start,[]]]),bm=new Map(goals.map(g=>[g,[]]));let ff=[start],bf=goals.slice(),df=0,db=0;while(ff.length&&bf.length&&df+db<maxDepth){if(ff.length<=bf.length){const next=[];for(const s of ff){const path=fm.get(s);for(const m of MOVES){const ns=applyMove(s,m);if(fm.has(ns))continue;const np=path.concat(m);fm.set(ns,np);if(bm.has(ns))return np.concat(bm.get(ns));next.push(ns)}}ff=next;df++}else{const next=[];for(const s of bf){const path=bm.get(s);for(const m of MOVES){const ns=applyMove(s,m);if(bm.has(ns))continue;const np=[inverse(m)].concat(path);bm.set(ns,np);if(fm.has(ns))return fm.get(ns).concat(np);next.push(ns)}}bf=next;db++}}return null}
+function verifySolution(start,moves){let s=start;for(const m of moves)s=applyMove(s,m);return goalsFor(start).includes(s)}
+function buildStates(start,moves){const a=[start];let s=start;for(const m of moves){s=applyMove(s,m);a.push(s)}return a}
+async function solve(){setValidation();const basic=validateBasic();if(basic){setValidation(basic);return}const start=toStringState();setStatus('Ich prüfe, ob dieser Tetraeder erreichbar ist …','busy');$('solveBtn').disabled=true;await new Promise(r=>setTimeout(r,30));try{const path=solveBidirectional(start,11);if(path===null){setValidation('Dieser Zustand ist mit dem aktuellen Tetraeder-Modell nicht erreichbar. Prüfe Farben, Ausrichtung und besonders die vier kleinen Spitzen.');setStatus('Nicht erreichbarer Tetraeder-Zustand.','error');return}if(!verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=buildStates(start,path);state.step=0;setStatus(path.length?`Lösung verifiziert: ${path.length} Hauptzüge.`:'Der Tetraeder ist schon gelöst.','ok');showSolve()}catch(e){console.error(e);setValidation('Interner Prüffehler. Die Lösung wurde nicht angezeigt.');setStatus('Lösung konnte nicht verifiziert werden.','error')}finally{$('solveBtn').disabled=false}}
+function moveName(m){return {U:'obere Spitze',R:'rechte Spitze',L:'linke Spitze',B:'hintere Spitze'}[m[0]]}
+function describe(m){const dir=m.endsWith("'")?'gegen den Uhrzeigersinn':'im Uhrzeigersinn';return `Schau direkt auf die ${moveName(m)}. Drehe die ganze Ebene unter dieser Spitze um 120° ${dir}.`}
+function label(m){return({U:'O',R:'R',L:'L',B:'H'}[m[0]])+(m.endsWith("'")?"'":'')}
+function renderSolution(){const total=state.solution.length,m=state.solution[state.step];$('backStep').disabled=state.step===0;$('nextStep').disabled=state.step>=total;if(!total){$('stepCount').textContent='0 Züge nötig';$('moveTitle').textContent='Schon gelöst';$('moveDescription').textContent='Du musst nichts drehen.';$('moveBadge').textContent='✓';$('directionCard').textContent='Schon gelöst'}else if(state.step>=total){$('stepCount').textContent=`${total} von ${total} geschafft`;$('moveTitle').textContent='Geschafft';$('moveDescription').textContent='Alle Hauptzüge sind bestätigt.';$('moveBadge').textContent='✓';$('directionCard').textContent='Hauptkörper gelöst'}else{$('stepCount').textContent=`Zug ${state.step+1} von ${total}`;$('moveTitle').textContent='Jetzt: '+label(m);$('moveDescription').textContent=describe(m)+' Die Animation wiederholt sich bis zur Bestätigung.';$('moveBadge').textContent=label(m);$('directionCard').textContent=`${moveName(m)}: 120° ${m.endsWith("'")?'gegen':'im'} Uhrzeigersinn`}const h=$('solutionList');h.innerHTML='';state.solution.forEach((x,i)=>{const c=document.createElement('span');c.className='move-chip'+(i<state.step?' done':i===state.step?' current':'');c.textContent=`${i+1}. ${label(x)}`;h.appendChild(c)});renderAnimation();renderFlat()}
+function renderAnimation(){state.animToken++;const cap=$('turnCap'),m=state.solution[state.step];cap.className='turn-cap';if(!m){$('replayBtn').disabled=true;return}$('replayBtn').disabled=false;cap.classList.add('show',m.endsWith("'")?'anim-ccw':'anim-cw');const pos={U:['54px','5px','0deg'],R:['99px','77px','120deg'],L:['9px','77px','-120deg'],B:['54px','85px','180deg']}[m[0]];cap.style.left=pos[0];cap.style.top=pos[1];cap.style.rotate=pos[2]}
+function renderFlat(){const h=$('flatPyra');h.innerHTML='';const s=state.states[state.step]||SOLVED;for(let f=0;f<4;f++){const d=document.createElement('div');d.className='mini-tri f'+f;for(let i=0;i<9;i++){const p=TRI_POS[i],x=document.createElement('span');x.className='mini-dot';x.style.left=(p[0]+3)+'%';x.style.top=(p[1]+3)+'%';const code=s[f*9+i],k=COLOR_KEYS.find(k=>PALETTE[k].code===code);x.style.background=PALETTE[k]?.hex||'#ccc';if(p[2])x.style.transform='rotate(180deg)';d.appendChild(x)}h.appendChild(d)}}
+function showSolve(){$('inputView').hidden=true;$('solveView').hidden=false;renderSolution()}
+function showInput(){$('solveView').hidden=true;$('inputView').hidden=false;renderInput()}
+function reset(){state.faces=Array.from({length:4},()=>Array(9).fill(null));state.currentFace=0;state.solution=[];state.states=[];state.step=0;state.testMode=null;try{localStorage.removeItem('rubik-pyra-test-v1')}catch{}setValidation();setStatus('Bereit.');showInput()}
+$('chooseCube').onclick=()=>{location.href='./index.html'};
+$('choosePyra').onclick=()=>{$('chooser').hidden=true;$('pyraApp').hidden=false;renderInput()};
+$('backHome').onclick=()=>{$('pyraApp').hidden=true;$('chooser').hidden=false};
+$('resetBtn').onclick=()=>{if(confirm('Alle Tetraeder-Farben löschen?'))reset()};
+$('prevFace').onclick=()=>{if(state.currentFace>0){state.currentFace--;save();renderInput()}};
+$('nextFace').onclick=()=>{if(state.faces[state.currentFace].every(Boolean)&&state.currentFace<3){state.currentFace++;save();renderInput()}};
+$('clearFace').onclick=()=>{state.faces[state.currentFace]=Array(9).fill(null);save();renderInput()};
+$('solveBtn').onclick=solve;
+$('nextStep').onclick=()=>{if(state.step<state.solution.length){state.step++;renderSolution()}};
+$('backStep').onclick=()=>{if(state.step>0){state.step--;renderSolution()}};
+$('editBtn').onclick=showInput;
+$('replayBtn').onclick=()=>{const c=$('turnCap');c.classList.remove('anim-cw','anim-ccw');void c.offsetWidth;renderAnimation()};
+$('knownTest').onclick=()=>{fromStringState(KNOWN);setValidation("Referenztest geladen: Zustand nach L R' L' R.",'success');setStatus('4-Zug-Referenz geladen.','ok')};
+$('solvedTest').onclick=()=>{fromStringState(SOLVED);setValidation('Gelöster Referenzzustand geladen.','success')};
+$('invalidTest').onclick=()=>{fromStringState(INVALID);setValidation('Unmöglicher Zustand geladen: zwei Spitzen-Sticker wurden vertauscht.','success')};
+load();renderInput();setStatus('Bereit.');
+window.__PYRA_TEST__={applyMove,solveBidirectional,verifySolution,SOLVED,KNOWN,INVALID};
