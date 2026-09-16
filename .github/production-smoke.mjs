@@ -21,7 +21,23 @@ async function waitForCombinedProduction(page) {
 
 async function resetRootState(page, suffix) {
   await page.goto(`${BASE}?reset=${suffix}-${Date.now()}`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    localStorage.clear();
+    const api = window.__PYRA_TEST__;
+    api?.clearProgress?.();
+    if (api?.state) {
+      api.state.solution = [];
+      api.state.states = [];
+      api.state.step = 0;
+      api.state.testMode = null;
+    }
+    const pyraApp = document.getElementById('pyraApp');
+    const solveView = document.getElementById('solveView');
+    const chooser = document.getElementById('chooser');
+    if (pyraApp) pyraApp.hidden = true;
+    if (solveView) solveView.hidden = true;
+    if (chooser) chooser.hidden = false;
+  });
   await page.reload({ waitUntil: 'domcontentloaded' });
   assert(await page.locator('#chooser').isVisible(), 'Chooser is not visible after state reset');
 }
