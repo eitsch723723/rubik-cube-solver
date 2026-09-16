@@ -19,6 +19,13 @@ async function waitForCombinedProduction(page) {
   throw new Error(`Combined production did not become available: ${last}`);
 }
 
+async function resetRootState(page, suffix) {
+  await page.goto(`${BASE}?reset=${suffix}-${Date.now()}`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  assert(await page.locator('#chooser').isVisible(), 'Chooser is not visible after state reset');
+}
+
 async function expectMoveListVisible(page, listSelector, expectedCount = null) {
   const result = await page.evaluate(({ listSelector, expectedCount }) => {
     const list = document.querySelector(listSelector);
@@ -49,7 +56,7 @@ async function expectMoveListVisible(page, listSelector, expectedCount = null) {
 
 async function testCube(page) {
   await page.setViewportSize({ width: 402, height: 740 });
-  await page.goto(`${BASE}?cube=${Date.now()}`, { waitUntil: 'domcontentloaded' });
+  await resetRootState(page, 'cube');
   await page.locator('#chooseCube').click();
   await page.waitForURL(`${BASE}cube/`, { timeout: 15000 });
   assert((await page.title()) === 'Zauberwürfel-Löser', 'Cube title is wrong');
@@ -73,7 +80,7 @@ async function testCube(page) {
 
 async function testTetra(page) {
   await page.setViewportSize({ width: 402, height: 740 });
-  await page.goto(`${BASE}?tetra=${Date.now()}`, { waitUntil: 'domcontentloaded' });
+  await resetRootState(page, 'tetra-full');
   await page.locator('#choosePyra').click();
   await page.locator('#pyraApp').waitFor({ state: 'visible' });
   await page.locator('#testsBtn').click();
@@ -94,7 +101,7 @@ async function testTetra(page) {
   assert(state.mapping === true, 'Tetraeder solver/state/text/visual mapping verification failed');
   await expectMoveListVisible(page, '#solutionList', state.length);
 
-  await page.goto(`${BASE}?invalid=${Date.now()}`, { waitUntil: 'domcontentloaded' });
+  await resetRootState(page, 'tetra-invalid');
   await page.locator('#choosePyra').click();
   await page.locator('#testsBtn').click();
   await page.locator('#invalidTestBtn').click();
@@ -104,7 +111,7 @@ async function testTetra(page) {
   assert(await page.locator('#solveView').isHidden(), 'Impossible Tetraeder state opened solve view');
 
   await page.setViewportSize({ width: 844, height: 390 });
-  await page.goto(`${BASE}?landscape=${Date.now()}`, { waitUntil: 'domcontentloaded' });
+  await resetRootState(page, 'tetra-landscape');
   await page.locator('#choosePyra').click();
   await page.locator('#testsBtn').click();
   await page.locator('#quickTestBtn').click();
