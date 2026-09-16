@@ -122,8 +122,15 @@ async function testTetra(page) {
   await page.locator('#testsBtn').click();
   await page.locator('#invalidTestBtn').click();
   await page.locator('#solveBtn').click();
+  await page.waitForFunction(() => {
+    const status = document.querySelector('#statusText')?.textContent || '';
+    const testResult = document.querySelector('#testResult')?.textContent || '';
+    return status.includes('physikalisch nicht erreichbar') && testResult.includes('Fehlertest bestanden');
+  }, null, { timeout: 30000 });
   const invalidStatus = await page.locator('#statusText').innerText();
+  const invalidResult = await page.locator('#testResult').innerText();
   assert(invalidStatus.includes('physikalisch nicht erreichbar'), `Impossible Tetraeder state was not rejected: ${invalidStatus}`);
+  assert(invalidResult.includes('Fehlertest bestanden'), `Impossible-state regression did not pass: ${invalidResult}`);
   assert(await page.locator('#solveView').isHidden(), 'Impossible Tetraeder state opened solve view');
 
   await page.setViewportSize({ width: 844, height: 390 });
