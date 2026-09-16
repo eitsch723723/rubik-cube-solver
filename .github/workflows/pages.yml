@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Test and Deploy Combined App
 
 on:
   push:
@@ -12,27 +12,100 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-production-v2
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  test-and-build:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout combined application source
+        uses: actions/checkout@v6
+        with:
+          repository: eitsch723723/rubik-cube-tetraeder-solver
+          ref: f7f39b453e59af281491660db12a310c8aff498b
+          path: src
+          persist-credentials: false
+
+      - name: Checkout pinned Cube source
+        uses: actions/checkout@v6
+        with:
+          repository: eitsch723723/rubik-cube-solver
+          ref: 071e6fbff8383f6abb744e2f08f00304e58e0824
+          path: cube-source
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build deterministic Pages artifact
+        run: node src/scripts/build-site.mjs
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check src/app.js
+          node --check src/release-fixes.js
+          node --check src/features.js
+          node --check src/tetra-core.js
+          node --check src/tetra-worker.js
+          node --check src/tetra-visuals.js
+          node --check site/cube/app.js
+          node --check site/cube/solver-worker.js
+          node --check src/sw.js
+
+      - name: Tetraeder solver unit regression
+        run: node src/tests/unit.cjs
+
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.48.2
+
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Start local test server
+        run: python3 -m http.server 4173 --directory site >/tmp/rubik-http.log 2>&1 &
+
+      - name: Chromium and WebKit regression
+        run: npx playwright test --config=src/tests/playwright.config.js
+
+      - name: Upload tested site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages-${{ github.run_attempt }}
+          path: site
+
+  deploy:
+    needs: test-and-build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+  post-deploy-smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.48.2
+
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Test deployed production site
+        run: node .github/production-smoke.mjs
