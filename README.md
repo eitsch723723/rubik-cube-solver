@@ -38,6 +38,8 @@ Für **Unten (U)** bleibt das Eingabedreieck aufrecht:
 - die frühere Vorderkante liegt unten beim Betrachter;
 - eine eigene Orientierungsgrafik und Beschriftungen zeigen diese Ausrichtung.
 
+Die sichtbaren Dreiecksfelder jeder Seite werden dabei auf die tatsächliche räumliche Position am Tetraeder abgebildet. Dadurch können nach dieser Anleitung eingegebene physikalisch erreichbare Stellungen zuverlässig geprüft und gelöst werden.
+
 ## Sicherheit und Offline-Verhalten
 
 - Es werden keine Zugangsdaten oder persönlichen Daten benötigt.
@@ -60,6 +62,8 @@ Details und die Abgrenzung zu realen Gerätetests stehen in [TEST_REPORT.md](./T
 
 ### 2026-09-18
 
+- Die fehlerhafte Zuordnung zwischen den sichtbaren Eingabedreiecken und den internen Solver-Positionen wurde für alle vier Seiten korrigiert.
+- Ein neuer Browsertest gibt eine erreichbare Stellung über alle 36 sichtbaren Dreiecke ein und prüft anschließend die vollständige Lösung.
 - Die vollständige produktive App wurde in dieses Repository übernommen; das Deployment hängt nicht mehr von der früheren Testversion in einem anderen Repository ab.
 - Die Tetraeder-Eingabe wurde für iPad quer und Laptop-Browser höhenresponsiv gemacht, damit kein Seitenscrollen nötig ist.
 - Die Anleitung für **Unten (U)** wurde mit eindeutiger Kanten- und Eckbeschriftung sowie einer passenden Grafik ergänzt.

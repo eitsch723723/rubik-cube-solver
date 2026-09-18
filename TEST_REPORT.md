@@ -21,19 +21,21 @@ Der GitHub-Actions-Workflow erstellt vor dem Deployment ein deterministisches Gi
 - unabhängige Spitzendrehung,
 - inverse Zugbeziehungen,
 - physikalisch nicht erreichbarer Zustand,
+- vollständige und umkehrbare Zuordnung aller 36 sichtbaren Eingabefelder zu den Solver-Positionen,
 - 20 deterministisch erzeugte Scrambles,
 - erneute Ausführung und Verifikation jeder berechneten Lösung mit derselben internen Move-Engine.
 
-Der zuletzt bestätigte P2-Lauf meldete: `known=4`, `full=11`, `tip=1`, `deterministicRandom=20`.
+Der zuletzt bestätigte P2-Lauf meldete: `inputMapping=36`, `known=4`, `full=11`, `tip=1`, `deterministicRandom=20`.
 
 ### Browser-E2E
 
-Die E2E-Suite wurde lokal am 2026-09-18 jeweils vollständig in Chromium und WebKit ausgeführt: **13 von 13 Tests bestanden**. Der GitHub-Actions-Workflow führt dieselbe Suite vor jeder Veröffentlichung erneut aus. Geprüft werden unter anderem:
+Die E2E-Suite wird lokal und im GitHub-Actions-Workflow vollständig in Chromium und WebKit ausgeführt. Geprüft werden unter anderem:
 
 - Puzzle-Auswahl und lokaler Wechsel zum eingebetteten Cube-Löser,
 - Rückkehr zur Puzzle-Auswahl,
 - Tetraeder-Schnelltest und vollständiger Test inklusive unabhängiger Spitzenzüge,
 - Ablehnung unmöglicher Tetraederzustände,
+- Eingabe einer erreichbaren Stellung über alle 36 sichtbaren Dreiecke und anschließende verifizierte Lösung,
 - exakte Zuordnung zwischen Solver-Move und animierter Ebene,
 - permanente Orientierungsmarker `V`, `L`, `R`, `U`,
 - Reduced Motion,
@@ -51,7 +53,7 @@ Die iPhone-17-Pro-Portrait-Regressionsprüfung verwendet absichtlich weniger als
 
 ## Deployment-Gate
 
-GitHub Pages wird nur nach erfolgreichem Build und erfolgreicher Regression deployed. Das getestete Artefakt wird anschließend veröffentlicht; danach prüft ein Smoke-Test die veröffentlichte Cube- und Tetraeder-App erneut in Chromium und WebKit. Dieser lokale Branch wurde noch nicht veröffentlicht.
+GitHub Pages wird nur nach erfolgreichem Build und erfolgreicher Regression deployed. Das getestete Artefakt wird anschließend veröffentlicht; danach prüft ein Smoke-Test die veröffentlichte Cube- und Tetraeder-App erneut in Chromium und WebKit. Derselbe vollständige Smoke-Test wurde vor dieser Veröffentlichung lokal in Chromium und WebKit erfolgreich ausgeführt.
 
 ## Code-Review
 
@@ -61,6 +63,7 @@ Bei Änderungen werden insbesondere folgende Kopplungen geprüft:
 - Move ↔ Textanweisung,
 - Move ↔ betroffene Ebene und Drehrichtung der Animation,
 - State nach Bestätigung ↔ dargestellte Sticker,
+- sichtbares Eingabefeld ↔ räumliche Position ↔ interner Solver-State,
 - relative Pfade, Service-Worker-Cache und GitHub-Pages-Unterpfad,
 - Safe Areas und dynamische Viewports nach Layoutänderungen,
 - Begrenzung der 3D-Animation auf ihren eigenen Layoutbereich und vollständige Sichtbarkeit der Lösungszugfolge.
