@@ -70,6 +70,30 @@ async function expectMoveListVisible(page, listSelector, expectedCount = null) {
   assert(result.listFits, 'Move list requires scrolling');
 }
 
+async function expectTetraInputFits(page) {
+  const result = await page.evaluate(() => {
+    const input = document.querySelector('#inputView');
+    const panel = document.querySelector('.input-panel');
+    const nav = document.querySelector('.nav-row');
+    const triangle = document.querySelector('#triangleEditor');
+    const bounds = [input, panel, nav, triangle].map(element => element.getBoundingClientRect());
+    return {
+      noPageScroll: document.documentElement.scrollWidth <= innerWidth + 2 && document.body.scrollWidth <= innerWidth + 2 && document.documentElement.scrollHeight <= innerHeight + 2 && document.body.scrollHeight <= innerHeight + 2,
+      allVisible: bounds.every(rect => rect.left >= -1 && rect.right <= innerWidth + 1 && rect.top >= -1 && rect.bottom <= innerHeight + 1),
+      panelFits: panel.scrollHeight <= panel.clientHeight + 2,
+      orientation: document.querySelector('#orientationText')?.textContent || '',
+      topLabel: document.querySelector('#triangleTopLabel')?.textContent || '',
+      bottomLabel: document.querySelector('#triangleBottomLabel')?.textContent || ''
+    };
+  });
+  assert(result.noPageScroll, 'Tetraeder input page requires scrolling');
+  assert(result.allVisible, 'A central Tetraeder input control is outside the viewport');
+  assert(result.panelFits, 'Tetraeder input panel clips its content');
+  assert(result.orientation.includes('Spitze nach oben'), 'Unten orientation does not explain the upright triangle');
+  assert(result.topLabel === 'Hintere Ecke', 'Unten top orientation label is missing');
+  assert(result.bottomLabel.includes('Frühere Vorderkante'), 'Unten front-edge label is missing');
+}
+
 async function testCube(page) {
   await page.setViewportSize({ width: 402, height: 740 });
   await resetRootState(page, 'cube');
@@ -95,6 +119,13 @@ async function testCube(page) {
 }
 
 async function testTetra(page) {
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await resetRootState(page, 'tetra-input-ipad-landscape');
+  await page.locator('#choosePyra').click();
+  await page.locator('#pyraApp').waitFor({ state: 'visible' });
+  await page.locator('.face-tab').nth(3).click();
+  await expectTetraInputFits(page);
+
   await page.setViewportSize({ width: 402, height: 740 });
   await resetRootState(page, 'tetra-full');
   await page.locator('#choosePyra').click();
@@ -153,7 +184,7 @@ async function testStaticAssets(context) {
   const sw = await context.request.get(`${BASE}sw.js?smoke=${Date.now()}`);
   assert(sw.ok(), `Service worker request failed: ${sw.status()}`);
   const swText = await sw.text();
-  assert(swText.includes('rubik-puzzle-pwa-v6'), 'Combined-app service worker is not deployed');
+  assert(swText.includes('rubik-puzzle-pwa-v7'), 'Combined-app service worker is not deployed');
   const worker = await context.request.get(`${BASE}cube/solver-worker.js?smoke=${Date.now()}`);
   assert(worker.ok(), `Cube worker request failed: ${worker.status()}`);
   const workerText = await worker.text();

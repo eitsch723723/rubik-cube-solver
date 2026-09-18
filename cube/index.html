@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7fb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Zauberwürfel">
+  <meta name="description" content="Kindgerechter 3×3×3-Zauberwürfel-Löser mit Schritt-für-Schritt-3D-Animation.">
+  <title>Zauberwürfel-Löser</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css?v=20260913-2">
+  <style>
+    /* Safari must never let component display rules override the HTML hidden state. */
+    [hidden]{display:none!important}
+    @media(max-width:430px) and (orientation:portrait){
+      .app{padding:4px 7px;gap:4px}
+      header{min-height:38px}
+      .status{padding:4px 9px}
+      .input-panel{padding:8px}
+      .orientation-note{margin:3px 0;padding:5px 8px}
+      .face-orientation{--face-size:clamp(145px,25dvh,205px)}
+      .palette-btn{height:clamp(27px,3.8vh,33px)}
+      .nav-row{margin-top:3px}
+    }
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="brand">
+      <h1>Zauberwürfel-Löser</h1>
+      <p>Gib die sechs Seiten ein. Danach zeige ich dir jeden Zug einzeln.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="choosePuzzleBtn" type="button" onclick="location.href='../'">Puzzle wählen</button>
+      <button class="btn" id="testsBtn" type="button">Tests</button>
+      <button class="btn danger" id="resetBtn" type="button">Neu beginnen</button>
+    </div>
+  </header>
+
+  <div class="status" role="status" aria-live="polite">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Bereit.</span>
+  </div>
+
+  <aside class="test-drawer" id="testDrawer" hidden>
+    <strong>App testen</strong>
+    <div class="test-buttons">
+      <button class="btn small" id="quickTestBtn" type="button">Schnelltest</button>
+      <button class="btn small" id="fullTestBtn" type="button">Großer Test</button>
+      <button class="btn small" id="invalidTestBtn" type="button">Fehlertest</button>
+    </div>
+    <p id="testResult" class="test-result"></p>
+  </aside>
+
+  <main id="inputView" class="view input-view">
+    <nav id="faceTabs" class="face-tabs" aria-label="Würfelseiten"></nav>
+    <div class="input-layout">
+      <section class="panel input-panel">
+        <div class="input-head">
+          <div>
+            <small>Diese Seite gibst du jetzt ein</small>
+            <h2 id="currentFaceTitle">Vorne (V)</h2>
+          </div>
+          <div class="progress-pill" id="faceProgress">0/9</div>
+        </div>
+        <p class="orientation-note" id="orientationNote"></p>
+
+        <div class="face-orientation">
+          <div class="neighbor top" id="neighborTop"></div>
+          <div class="neighbor left" id="neighborLeft"></div>
+          <div class="face-editor" id="faceEditor"></div>
+          <div class="neighbor right" id="neighborRight"></div>
+          <div class="neighbor bottom" id="neighborBottom"></div>
+        </div>
+
+        <div class="palette-title">Farbe auswählen und Kästchen antippen</div>
+        <div class="palette" id="palette"></div>
+        <div class="counts" id="colorCounts"></div>
+        <div class="validation" id="validation" aria-live="polite"></div>
+
+        <div class="nav-row">
+          <button class="btn" id="prevFaceBtn" type="button">← Zurück</button>
+          <button class="btn" id="clearFaceBtn" type="button">Seite leeren</button>
+          <button class="btn primary" id="nextFaceBtn" type="button">Weiter →</button>
+          <button class="btn primary" id="solveBtn" type="button" hidden>Würfel lösen</button>
+        </div>
+      </section>
+
+      <aside class="panel reference-panel">
+        <h3>So hältst du den Würfel</h3>
+        <p>Die kleine Ansicht zeigt, wie die Seiten zusammengehören. Achte besonders auf die Wörter rund um die große Fläche.</p>
+        <div class="reference-net" id="referenceNet"></div>
+        <h3>Farben in der Mitte</h3>
+        <div class="center-map" id="centerMap"></div>
+        <p class="hint"><strong>Tipp:</strong> Bei Hinten, Oben und Unten kann man den Würfel leicht falsch herum halten.</p>
+      </aside>
+    </div>
+  </main>
+
+  <main id="solveView" class="view solve-view" hidden>
+    <div class="solve-layout">
+      <section class="panel instruction-panel">
+        <div class="move-head">
+          <div>
+            <small id="stepCount">Start</small>
+            <h2 id="moveTitle">Los geht’s</h2>
+            <p id="moveDescription">Ich zeige dir immer genau einen Zug.</p>
+          </div>
+          <div class="move-badge" id="moveBadge">–</div>
+        </div>
+
+        <div class="controls">
+          <button class="btn" id="backStepBtn" type="button">← Letzten Zug rückgängig</button>
+          <button class="btn primary" id="nextStepBtn" type="button">Diesen Zug habe ich gemacht →</button>
+          <button class="btn" id="editBtn" type="button">Farben ändern</button>
+        </div>
+        <div class="finished" id="finishedBox">Geschafft! Jede Seite sollte jetzt nur noch eine Farbe haben.</div>
+        <div class="solution-sequence">
+          <h3>Alle Züge</h3>
+          <div class="solution-list" id="solutionList"></div>
+        </div>
+        <p class="notation"><strong>Seiten:</strong> V = Vorne, H = Hinten, O = Oben, U = Unten, L = Links, R = Rechts. Ohne Zeichen: <strong>im Uhrzeigersinn</strong>. <code>'</code>: <strong>gegen den Uhrzeigersinn</strong>. <code>2</code>: 180°.</p>
+      </section>
+
+      <section class="panel visual-panel">
+        <div class="direction-card" id="directionCard">Start</div>
+        <div class="cube-scene" id="cubeScene">
+          <div class="cube3d" id="cube3d" aria-label="3D-Animation des nächsten Zugs"></div>
+          <div class="turn-arrow" id="turnArrow"></div>
+        </div>
+        <button class="btn replay" id="replayBtn" type="button">Animation neu starten</button>
+        <div class="flat-net" id="flatNet"></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="./app.js?v=20260913-2" defer></script>
+</body>
+</html>

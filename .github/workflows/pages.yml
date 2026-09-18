@@ -1,4 +1,4 @@
-name: Test and Deploy Combined App
+name: Test and Deploy App
 
 on:
   push:
@@ -12,51 +12,38 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-production-v2
+  group: pages-production-v3
   cancel-in-progress: false
 
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout combined application source
+      - name: Checkout application
         uses: actions/checkout@v6
-        with:
-          repository: eitsch723723/rubik-cube-tetraeder-solver
-          ref: f7f39b453e59af281491660db12a310c8aff498b
-          path: src
-          persist-credentials: false
-
-      - name: Checkout pinned Cube source
-        uses: actions/checkout@v6
-        with:
-          repository: eitsch723723/rubik-cube-solver
-          ref: 071e6fbff8383f6abb744e2f08f00304e58e0824
-          path: cube-source
-          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Build deterministic Pages artifact
-        run: node src/scripts/build-site.mjs
+      - name: Build self-contained Pages artifact
+        run: node scripts/build-site.mjs
 
       - name: JavaScript syntax checks
         run: |
-          node --check src/app.js
-          node --check src/release-fixes.js
-          node --check src/features.js
-          node --check src/tetra-core.js
-          node --check src/tetra-worker.js
-          node --check src/tetra-visuals.js
-          node --check site/cube/app.js
-          node --check site/cube/solver-worker.js
-          node --check src/sw.js
+          node --check app.js
+          node --check release-fixes.js
+          node --check features.js
+          node --check tetra-core.js
+          node --check tetra-worker.js
+          node --check tetra-visuals.js
+          node --check cube/app.js
+          node --check cube/solver-worker.js
+          node --check sw.js
 
       - name: Tetraeder solver unit regression
-        run: node src/tests/unit.cjs
+        run: node tests/unit.cjs
 
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@1.48.2
@@ -68,7 +55,7 @@ jobs:
         run: python3 -m http.server 4173 --directory site >/tmp/rubik-http.log 2>&1 &
 
       - name: Chromium and WebKit regression
-        run: npx playwright test --config=src/tests/playwright.config.js
+        run: npx playwright test --config=tests/playwright.config.js
 
       - name: Upload tested site
         uses: actions/upload-pages-artifact@v3

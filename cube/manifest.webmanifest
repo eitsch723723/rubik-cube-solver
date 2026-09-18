@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Zauberpuzzle-Löser",
-  "short_name": "Zauberpuzzle",
-  "description": "Kindgerechter Löser für 3×3 Rubik Cube und Rubik Tetraeder (Pyraminx).",
+  "name": "Zauberwürfel-Löser",
+  "short_name": "Zauberwürfel",
+  "description": "Kindgerechter 3×3×3-Zauberwürfel-Löser mit Schritt-für-Schritt-3D-Animation.",
   "lang": "de-DE",
   "start_url": "./",
   "scope": "./",

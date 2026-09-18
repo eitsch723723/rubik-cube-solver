@@ -1,6 +1,6 @@
 'use strict';
 const SOLVED='UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
-const SOLVER_CDN='https://cdn.jsdelivr.net/gh/cs0x7f/min2phase.js@master/min2phase.js';
+const SOLVER_CDN='https://cdn.jsdelivr.net/gh/cs0x7f/min2phase.js@0ba83a6177d816f72af1a45c9015349da597456a/min2phase.js';
 const ORDER=['U','R','F','D','L','B'];
 const MOVES=["U","U2","U'","R","R2","R'","F","F2","F'","D","D2","D'","L","L2","L'","B","B2","B'"];
 

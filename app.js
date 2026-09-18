@@ -1,272 +1,148 @@
 'use strict';
-
-const FACE_ORDER=['F','R','B','L','U','D'];
-const SOLVER_ORDER=['U','R','F','D','L','B'];
-const SOLVED='UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
-const SOLVER_CDN='https://cdn.jsdelivr.net/gh/cs0x7f/min2phase.js@master/min2phase.js';
-const FACE_DISPLAY={F:'V',R:'R',B:'H',L:'L',U:'O',D:'U'};
-
-const FACE_INFO={
-  F:{name:'Vorne',note:'Halte den Würfel so, dass diese Seite zu dir zeigt. Merke dir: Das ist ab jetzt deine Vorderseite.',neighbors:{top:'Oben (O)',right:'Rechts (R)',bottom:'Unten (U)',left:'Links (L)'}},
-  R:{name:'Rechts',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die rechte Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Hinten (H)',bottom:'Unten (U)',left:'Vorne (V)'}},
-  B:{name:'Hinten',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel um 180°, sodass die Rückseite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Links (L)',bottom:'Unten (U)',left:'Rechts (R)'}},
-  L:{name:'Links',note:'Starte mit deiner gemerkten Vorderseite zu dir. Drehe den ganzen Würfel so, dass die linke Seite zu dir zeigt. Oben bleibt oben.',neighbors:{top:'Oben (O)',right:'Vorne (V)',bottom:'Unten (U)',left:'Hinten (H)'}},
-  U:{name:'Oben',note:'Schau direkt auf die obere Seite. Hinten (H) muss über den Kästchen stehen und Vorne (V) darunter.',neighbors:{top:'Hinten (H)',right:'Rechts (R)',bottom:'Vorne (V)',left:'Links (L)'}},
-  D:{name:'Unten',note:'Schau direkt auf die Unterseite. Vorne (V) muss über den Kästchen stehen und Hinten (H) darunter.',neighbors:{top:'Vorne (V)',right:'Rechts (R)',bottom:'Hinten (H)',left:'Links (L)'}}
-};
-
-function faceLabel(face){return FACE_DISPLAY[face]||face;}
-function moveLabel(move){return move?faceLabel(move[0])+move.slice(1):'';}
-
-const PALETTE={
-  white:{label:'Weiß',hex:'#f7f7f2'},yellow:{label:'Gelb',hex:'#ffd500'},red:{label:'Rot',hex:'#d92d20'},
-  orange:{label:'Orange',hex:'#ff7a00'},blue:{label:'Blau',hex:'#175cd3'},green:{label:'Grün',hex:'#079455'}
-};
-const COLORS=Object.keys(PALETTE);
-const DEFAULT_FACE_COLORS={U:'white',R:'red',F:'green',D:'yellow',L:'orange',B:'blue'};
-
-const QUICK_TEST='UUFUUFUUFRRRRRRRRRFFDFFDFFDDDBDDBDDBLLLLLLLLLUBBUBBUBB';
-const FULL_TEST='LLDDUULRFDFRDRBRDUDULBFLDUBRLULDRURBUFBDLUFBBFFFRBBLFR';
-const INVALID_TEST='UUUUUUUFURRRRRRRRRFUFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB';
-
 const $=id=>document.getElementById(id);
-const state={
-  faces:Object.fromEntries(SOLVER_ORDER.map(f=>[f,Array(9).fill(null)])),
-  currentFace:'F',selectedColor:'white',solutionMoves:[],playbackStates:[],currentStep:0,
-  faceToColor:null,testMode:null,isSolving:false,animationToken:0
-};
+const Core=window.TetraCore;
+const CUBE_URL='./cube/';
+const FACES=[
+  {name:'Vorne',short:'V',note:'Halte eine Spitze nach oben. Diese Dreiecksfläche zeigt zu dir.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Halte eine Spitze nach oben. Die Fläche „Vorne“ zeigt direkt zu dir.'},
+  {name:'Links',short:'L',note:'Drehe den ganzen Tetraeder nach rechts, bis die linke Fläche zu dir zeigt. Die obere Spitze bleibt oben.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Drehe den ganzen Tetraeder nach rechts. Die obere Spitze bleibt oben und „Links“ zeigt zu dir.'},
+  {name:'Rechts',short:'R',note:'Gehe zurück zur Vorderseite und drehe nach links, bis die rechte Fläche zu dir zeigt. Die obere Spitze bleibt oben.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Gehe zurück zur Vorderseite und drehe den ganzen Tetraeder nach links. Die obere Spitze bleibt oben und „Rechts“ zeigt zu dir.'},
+  {name:'Unten',short:'U',note:'Schau direkt auf die Unterseite. Das Dreieck bleibt mit der Spitze nach oben: Die einzelne hintere Ecke ist oben, die frühere Vorderkante liegt unten bei dir.',topLabel:'Hintere Ecke',bottomLabel:'Frühere Vorderkante · bei dir',help:'Das Dreieck steht nicht auf der Spitze. Die einzelne hintere Ecke zeigt nach oben; die frühere Vorderkante liegt unten bei dir.'}
+];
+const PALETTE={green:{label:'Grün',hex:'#079455',code:'g'},red:{label:'Rot',hex:'#d92d20',code:'r'},blue:{label:'Blau',hex:'#175cd3',code:'b'},yellow:{label:'Gelb',hex:'#ffd500',code:'y'}};
+const COLOR_KEYS=Object.keys(PALETTE);
+const state={faces:Array.from({length:4},()=>Array(9).fill(null)),currentFace:0,selected:'green',solution:[],states:[],step:0,testMode:null,previewAnim:null};
 
-function setStatus(text,kind=''){
-  $('statusText').textContent=text;
-  $('statusDot').className='status-dot'+(kind?' '+kind:'');
-}
-function setValidation(text='',kind='error'){
-  const el=$('validation');
-  el.textContent=text;
-  el.className='validation'+(text?' show '+kind:'');
-  requestAnimationFrame(fitViewport);
-}
-function setTestResult(text='',kind=''){
-  const el=$('testResult'); el.textContent=text; el.className='test-result'+(kind?' '+kind:'');
-}
+function setStatus(text,kind=''){$('statusText').textContent=text;$('statusDot').className='status-dot'+(kind?' '+kind:'');}
+function setValidation(text='',kind='error'){const e=$('validation');e.textContent=text;e.className='validation'+(text?' show '+kind:'');}
+function counts(){const c=Object.fromEntries(COLOR_KEYS.map(k=>[k,0]));state.faces.flat().forEach(x=>{if(x)c[x]++;});return c;}
+function allFilled(){return state.faces.every(f=>f.every(Boolean));}
+function save(){try{localStorage.setItem('rubik-pyra-separate-v2',JSON.stringify({faces:state.faces,currentFace:state.currentFace,selected:state.selected}));}catch{}}
+function load(){try{const x=JSON.parse(localStorage.getItem('rubik-pyra-separate-v2')||'null');if(!x)return;if(Array.isArray(x.faces)&&x.faces.length===4)x.faces.forEach((f,i)=>{if(Array.isArray(f)&&f.length===9)state.faces[i]=f.map(c=>COLOR_KEYS.includes(c)?c:null);});if(Number.isInteger(x.currentFace)&&x.currentFace>=0&&x.currentFace<4)state.currentFace=x.currentFace;if(COLOR_KEYS.includes(x.selected)||x.selected==='erase')state.selected=x.selected;}catch{}}
 
-function saveInput(){
-  if(state.testMode) return;
-  try{localStorage.setItem('rubik-pages-input-v1',JSON.stringify({faces:state.faces,currentFace:state.currentFace,selectedColor:state.selectedColor}));}catch{}
-}
-function loadInput(){
-  try{
-    const raw=localStorage.getItem('rubik-pages-input-v1'); if(!raw) return;
-    const x=JSON.parse(raw);
-    SOLVER_ORDER.forEach(f=>{if(Array.isArray(x.faces?.[f])&&x.faces[f].length===9) state.faces[f]=x.faces[f].map(c=>COLORS.includes(c)?c:null);});
-    if(FACE_ORDER.includes(x.currentFace)) state.currentFace=x.currentFace;
-    if(COLORS.includes(x.selectedColor)||x.selectedColor==='erase') state.selectedColor=x.selectedColor;
-  }catch{}
-}
+const SVG='http://www.w3.org/2000/svg';
+function el(name,attrs={}){const x=document.createElementNS(SVG,name);for(const[k,v]of Object.entries(attrs))x.setAttribute(k,String(v));return x;}
+function vAdd(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]];}function vScale(a,s){return[a[0]*s,a[1]*s,a[2]*s];}
+function rotate3(p,ax,ay){let[x,y,z]=p;let c=Math.cos(ax),s=Math.sin(ax);[y,z]=[y*c-z*s,y*s+z*c];c=Math.cos(ay);s=Math.sin(ay);[x,z]=[x*c+z*s,-x*s+z*c];return[x,y,z];}
+function project(p,w,h,scale=72){const cam=5.2,k=cam/(cam-p[2]);return[w/2+p[0]*scale*k,h/2-p[1]*scale*k,p[2]];}
+function polyPoints(points){return points.map(p=>`${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');}
 
-function colorCounts(){
-  const c=Object.fromEntries(COLORS.map(x=>[x,0]));
-  SOLVER_ORDER.forEach(f=>state.faces[f].forEach(x=>{if(x)c[x]++;})); return c;
+function cubeStickers(angle){
+  const faces=[
+    {n:[0,0,1],u:[1,0,0],v:[0,1,0],color:'#079455'},
+    {n:[1,0,0],u:[0,0,-1],v:[0,1,0],color:'#175cd3'},
+    {n:[0,1,0],u:[1,0,0],v:[0,0,-1],color:'#f7f7f2'},
+    {n:[0,0,-1],u:[-1,0,0],v:[0,1,0],color:'#d92d20'},
+    {n:[-1,0,0],u:[0,0,1],v:[0,1,0],color:'#ff7a00'},
+    {n:[0,-1,0],u:[1,0,0],v:[0,0,1],color:'#ffd500'}
+  ];
+  const out=[];const gap=.055;
+  for(const f of faces)for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+    const x0=-1+c*2/3+gap,x1=-1+(c+1)*2/3-gap,y0=1-r*2/3-gap,y1=1-(r+1)*2/3+gap;
+    const pts=[[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([u,v])=>vAdd(f.n,vAdd(vScale(f.u,u),vScale(f.v,v))));
+    const rp=pts.map(p=>rotate3(p,-.42,angle));const pp=rp.map(p=>project(p,240,190,68));out.push({z:rp.reduce((s,p)=>s+p[2],0)/4,pts:pp,color:f.color});
+  }
+  return out.sort((a,b)=>a.z-b.z);
 }
-function allFilled(){return SOLVER_ORDER.every(f=>state.faces[f].every(Boolean));}
-function currentFaceFilled(){return state.faces[state.currentFace].every(Boolean);}
-function hasAnyInput(){return SOLVER_ORDER.some(f=>state.faces[f].some(Boolean));}
-
-function renderTabs(){
-  const host=$('faceTabs');host.innerHTML='';
-  FACE_ORDER.forEach((f,i)=>{
-    const filled=state.faces[f].filter(Boolean).length;
-    const b=document.createElement('button'); b.type='button'; b.className='face-tab'+(f===state.currentFace?' active':'')+(filled===9?' complete':'');
-    b.disabled=state.isSolving; b.innerHTML=`<strong>${i+1}. ${FACE_INFO[f].name}</strong><small>${filled===9?'fertig':filled+'/9'}</small>`;
-    b.onclick=()=>{state.currentFace=f;saveInput();renderInput();}; host.appendChild(b);
-  });
+function tetraTriangles(angle){
+  const V=[[0,1.28,0],[-1,-.7,.95],[1,-.7,.95],[0,-.7,-1.16]];
+  const faces=[
+    {v:[0,1,2],color:'#079455'},
+    {v:[0,2,3],color:'#175cd3'},
+    {v:[0,3,1],color:'#d92d20'},
+    {v:[1,3,2],color:'#ffd500'}
+  ];
+  const out=[];
+  for(const f of faces){const A=V[f.v[0]],B=V[f.v[1]],C=V[f.v[2]];const P=(r,c)=>{const n=3;return vAdd(vScale(A,1-r/n),vAdd(vScale(B,(r-c)/n),vScale(C,c/n)));};
+    for(let r=0;r<3;r++)for(let c=0;c<=r;c++){const pts=[P(r,c),P(r+1,c),P(r+1,c+1)];pushTri(pts,f.color);}
+    for(let r=1;r<3;r++)for(let c=0;c<r;c++){const pts=[P(r,c),P(r,c+1),P(r+1,c+1)];pushTri(pts,f.color);}
+  }
+  function pushTri(pts,color){const rp=pts.map(p=>rotate3(p,-.28,angle));const pp=rp.map(p=>project(p,240,190,68));out.push({z:rp.reduce((s,p)=>s+p[2],0)/3,pts:pp,color});}
+  return out.sort((a,b)=>a.z-b.z);
 }
-function renderPalette(){
-  const host=$('palette');host.innerHTML='';
-  COLORS.forEach(c=>{
-    const b=document.createElement('button');b.type='button';b.className='palette-btn'+(state.selectedColor===c?' active':'');b.disabled=state.isSolving;
-    b.innerHTML=`<span class="swatch" style="background:${PALETTE[c].hex}"></span><span>${PALETTE[c].label}</span>`;
-    b.onclick=()=>{state.selectedColor=c;saveInput();renderPalette();};host.appendChild(b);
-  });
-  const e=document.createElement('button');e.type='button';e.className='palette-btn'+(state.selectedColor==='erase'?' active':'');e.disabled=state.isSolving;
-  e.innerHTML='<span class="swatch" style="background:#f2f4f7;display:grid;place-items:center">×</span><span>Löschen</span>';
-  e.onclick=()=>{state.selectedColor='erase';saveInput();renderPalette();};host.appendChild(e);
+function drawScene(svg,kind,angle,highlight=null){
+  svg.innerHTML='';const items=kind==='cube'?cubeStickers(angle):tetraTriangles(angle);
+  for(const item of items){const p=el('polygon',{points:polyPoints(item.pts),fill:item.color,stroke:'#101828','stroke-width':kind==='cube'?2.1:2.5,'stroke-linejoin':'round'});svg.appendChild(p);}
+  if(kind==='tetra'&&highlight){
+    const labels={U:[120,25],R:[196,143],L:[44,143],B:[120,165]},pt=labels[highlight[0]]||[120,25];
+    const ring=el('circle',{cx:pt[0],cy:pt[1],r:16,fill:'none',stroke:'#087ff5','stroke-width':5,'stroke-dasharray':'7 5'});ring.classList.add('move-ring');svg.appendChild(ring);
+  }
 }
-function renderFaceEditor(){
-  const f=state.currentFace,info=FACE_INFO[f];
-  $('currentFaceTitle').textContent=`${info.name} (${faceLabel(f)})`; $('orientationNote').textContent=info.note;
-  $('neighborTop').textContent='↑ '+info.neighbors.top; $('neighborRight').textContent=info.neighbors.right+' →';
-  $('neighborBottom').textContent='↓ '+info.neighbors.bottom; $('neighborLeft').textContent='← '+info.neighbors.left;
-  $('faceProgress').textContent=state.faces[f].filter(Boolean).length+'/9';
-  const host=$('faceEditor');host.innerHTML='';
-  state.faces[f].forEach((c,i)=>{
-    const b=document.createElement('button');b.type='button';b.className='sticker'+(i===4?' center':'');b.disabled=state.isSolving;
-    if(c){b.style.background=PALETTE[c].hex;if(['red','green','blue'].includes(c))b.dataset.dark='1';}
-    b.setAttribute('aria-label',`${info.name}, Reihe ${Math.floor(i/3)+1}, Spalte ${i%3+1}, ${c?PALETTE[c].label:'leer'}`);
-    b.onclick=()=>{
-      setValidation();state.testMode=null;
-      if(state.selectedColor==='erase'){state.faces[f][i]=null;}
-      else{
-        const counts=colorCounts();const old=state.faces[f][i];
-        if(old!==state.selectedColor&&counts[state.selectedColor]>=9){setValidation(`${PALETTE[state.selectedColor].label} ist schon 9-mal eingetragen.`);return;}
-        state.faces[f][i]=state.selectedColor;
-      }
-      saveInput();renderInput();
-    };
-    host.appendChild(b);
-  });
+function drawHoldGuide(faceIndex){
+  const svg=$('holdPreview'),face=FACES[faceIndex];if(!svg)return;
+  svg.innerHTML='';
+  const faceShape=el('polygon',{points:'120,30 211,158 29,158',fill:'#eaf3ff',stroke:'#0f1b2d','stroke-width':4,'stroke-linejoin':'round'});svg.appendChild(faceShape);
+  const lines=[['120,30','120,158'],['74.5,94','165.5,94'],['74.5,94','120,158'],['165.5,94','120,158']];
+  lines.forEach(([a,b])=>{const line=el('line',{x1:a.split(',')[0],y1:a.split(',')[1],x2:b.split(',')[0],y2:b.split(',')[1],stroke:'#91bfee','stroke-width':2});svg.appendChild(line);});
+  const badge=el('circle',{cx:120,cy:112,r:24,fill:'#fff',stroke:'#087ff5','stroke-width':3});svg.appendChild(badge);
+  const letter=el('text',{x:120,y:120,'text-anchor':'middle','font-size':24,'font-weight':900,fill:'#095fc8'});letter.textContent=face.short;svg.appendChild(letter);
+  const top=el('text',{x:120,y:19,'text-anchor':'middle','font-size':faceIndex===3?12:13,'font-weight':800,fill:'#344054'});top.textContent=face.topLabel;svg.appendChild(top);
+  const bottom=el('text',{x:120,y:181,'text-anchor':'middle','font-size':faceIndex===3?12:13,'font-weight':800,fill:'#344054'});bottom.textContent=face.bottomLabel;svg.appendChild(bottom);
+  if(faceIndex===3){const arrow=el('path',{d:'M120 160 V171 M114 166 L120 172 L126 166',fill:'none',stroke:'#087ff5','stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round'});svg.appendChild(arrow);}
 }
-function renderCounts(){
-  const c=colorCounts(),host=$('colorCounts');host.innerHTML='';
-  COLORS.forEach(k=>{const d=document.createElement('div');d.className='count'+(c[k]===9?' good':c[k]>9?' bad':'');d.textContent=`${PALETTE[k].label}: ${c[k]}/9`;host.appendChild(d);});
-}
-function makeMiniFace(f,cls){
-  const d=document.createElement('div');d.className='mini-face '+cls+(f===state.currentFace?' current':'');
-  state.faces[f].forEach(c=>{const s=document.createElement('span');if(c)s.style.background=PALETTE[c].hex;d.appendChild(s);});
-  const l=document.createElement('b');l.className='mini-label';l.textContent=faceLabel(f);d.appendChild(l);return d;
-}
-function renderReference(){
-  const host=$('referenceNet');host.innerHTML='';const pos={U:'net-u',L:'net-l',F:'net-f',R:'net-r',B:'net-b',D:'net-d'};
-  ['U','L','F','R','B','D'].forEach(f=>host.appendChild(makeMiniFace(f,pos[f])));
-  const ch=$('centerMap');ch.innerHTML='';const cc={};FACE_ORDER.forEach(f=>{const c=state.faces[f][4];if(c)cc[c]=(cc[c]||0)+1;});
-  FACE_ORDER.forEach(f=>{const c=state.faces[f][4],bad=c&&cc[c]>1;const row=document.createElement('div');row.className='center-row'+(bad?' bad':'');
-    row.innerHTML=`<span>${FACE_INFO[f].name} (${faceLabel(f)})</span><span><i class="center-dot" style="background:${c?PALETTE[c].hex:'#eaecf0'}"></i>${c?PALETTE[c].label+(bad?' – doppelt':''):'fehlt'}</span>`;ch.appendChild(row);});
-}
-function renderNav(){
-  const i=FACE_ORDER.indexOf(state.currentFace),complete=allFilled();
-  $('prevFaceBtn').disabled=state.isSolving||i===0;$('nextFaceBtn').disabled=state.isSolving||!currentFaceFilled();
-  $('nextFaceBtn').hidden=i===FACE_ORDER.length-1;$('solveBtn').hidden=!(complete||i===FACE_ORDER.length-1);$('solveBtn').disabled=state.isSolving||!complete;$('clearFaceBtn').disabled=state.isSolving;
-}
-function renderInput(){renderTabs();renderPalette();renderFaceEditor();renderCounts();renderReference();renderNav();requestAnimationFrame(fitViewport);}
-
-function validateBasic(){
-  if(!allFilled()) return 'Es fehlen noch Farben. Fülle bitte alle Kästchen aus.';
-  const c=colorCounts(),bad=COLORS.filter(k=>c[k]!==9);if(bad.length)return `Jede Farbe muss genau 9-mal vorkommen. Prüfe: ${bad.map(k=>PALETTE[k].label).join(', ')}.`;
-  const centers=SOLVER_ORDER.map(f=>state.faces[f][4]);if(new Set(centers).size!==6)return 'In der Mitte jeder Seite muss eine andere Farbe sein.';return null;
-}
-function buildFaceletString(){
-  const centerToFace={},faceToColor={};SOLVER_ORDER.forEach(f=>{centerToFace[state.faces[f][4]]=f;faceToColor[f]=state.faces[f][4];});
-  return {str:SOLVER_ORDER.flatMap(f=>state.faces[f].map(c=>centerToFace[c])).join(''),faceToColor};
+function startChooserAnimation(){
+  if(state.previewAnim)return;let stopped=false;state.previewAnim={stop:()=>stopped=true};
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frame=t=>{if(stopped)return;const a=reduce?.65:t*.0005;drawScene($('cubePreview'),'cube',a);drawScene($('tetraPreview'),'tetra',a+.45);requestAnimationFrame(frame);};requestAnimationFrame(frame);
 }
 
-// Pure facelet move engine, used to verify the solver and build animation states.
-function buildMovePermutations(){
-  const normals={U:[0,1,0],R:[1,0,0],F:[0,0,1],D:[0,-1,0],L:[-1,0,0],B:[0,0,-1]};
-  const coord=(f,r,c)=>({F:[c-1,1-r,1],B:[1-c,1-r,-1],R:[1,1-r,1-c],L:[-1,1-r,c-1],U:[c-1,1,r-1],D:[c-1,-1,1-r]}[f]);
-  const key=(c,n)=>c.join(',')+'|'+n.join(',');const rev=new Map();
-  SOLVER_ORDER.forEach((f,fi)=>{for(let i=0;i<9;i++){const [r,c]=[Math.floor(i/3),i%3];rev.set(key(coord(f,r,c),normals[f]),fi*9+i);}});
-  const rot=(v,a,s)=>{const[x,y,z]=v;if(a==='x')return[x,-s*z,s*y];if(a==='y')return[s*z,y,-s*x];return[-s*y,s*x,z];};
-  const specs={R:['x',1,-1],L:['x',-1,1],U:['y',1,-1],D:['y',-1,1],F:['z',1,-1],B:['z',-1,1]},perms={};
-  Object.entries(specs).forEach(([f,[a,layer,s]])=>{const p=Array.from({length:54},(_,i)=>i);SOLVER_ORDER.forEach((sf,fi)=>{for(let i=0;i<9;i++){const r=Math.floor(i/3),c=i%3,co=coord(sf,r,c),n=normals[sf],v=a==='x'?co[0]:a==='y'?co[1]:co[2];if(v!==layer)continue;const j=rev.get(key(rot(co,a,s),rot(n,a,s)));p[j]=fi*9+i;}});perms[f]=p;});return perms;
+function triangleGrid(){
+  const W=346.41,H=300,n=3,pts=[];
+  const P=(r,c)=>[W/2-r*(W/(2*n))+c*(W/n),r*(H/n)];
+  for(let r=0;r<n;r++)for(let c=0;c<=r;c++)pts.push([P(r,c),P(r+1,c),P(r+1,c+1)]);
+  for(let r=1;r<n;r++)for(let c=0;c<r;c++)pts.push([P(r,c),P(r,c+1),P(r+1,c+1)]);
+  return pts;
 }
-const MOVE_PERMS=buildMovePermutations();
-function applyQuarter(stateStr,face){const p=MOVE_PERMS[face],o=Array(54);for(let i=0;i<54;i++)o[i]=stateStr[p[i]];return o.join('');}
-function applyMove(stateStr,move){let n=move.endsWith('2')?2:move.endsWith("'")?3:1;while(n-->0)stateStr=applyQuarter(stateStr,move[0]);return stateStr;}
-function buildStates(start,moves){const states=[start];let s=start;for(const m of moves){s=applyMove(s,m);states.push(s);}return states;}
-function shallowShortestPure(start,maxDepth=4){
-  const moves=["U","U2","U'","R","R2","R'","F","F2","F'","D","D2","D'","L","L2","L'","B","B2","B'"];
-  if(start===SOLVED)return '';
-  const dfs=(pos,left,lastFace,path)=>{
-    if(left===0)return pos===SOLVED?path:null;
-    for(const m of moves){if(m[0]===lastFace)continue;const found=dfs(applyMove(pos,m),left-1,m[0],path.concat(m));if(found)return found;}
-    return null;
-  };
-  for(let depth=1;depth<=maxDepth;depth++){const found=dfs(start,depth,null,[]);if(found)return found.join(' ');}
-  return null;
+const TRIANGLES=triangleGrid();
+function renderTabs(){const h=$('faceTabs');h.innerHTML='';FACES.forEach((f,i)=>{const n=state.faces[i].filter(Boolean).length,b=document.createElement('button');b.type='button';b.className='face-tab'+(i===state.currentFace?' active':'')+(n===9?' complete':'');b.innerHTML=`<strong>${i+1}. ${f.name}</strong><small>${n===9?'fertig':n+'/9'}</small>`;b.onclick=()=>{state.currentFace=i;save();renderInput();};h.appendChild(b);});}
+function renderTriangle(){
+  const f=FACES[state.currentFace];$('faceTitle').textContent=`${f.name} (${f.short})`;$('orientationText').textContent=f.note;$('faceProgress').textContent=state.faces[state.currentFace].filter(Boolean).length+'/9';
+  $('triangleEditorWrap').dataset.face=f.short;$('triangleTopLabel').textContent=f.topLabel;$('triangleBottomLabel').textContent=f.bottomLabel;$('holdHelp').textContent=f.help;drawHoldGuide(state.currentFace);
+  const svg=$('triangleEditor');svg.innerHTML='';
+  TRIANGLES.forEach((pts,i)=>{const c=state.faces[state.currentFace][i],p=el('polygon',{points:polyPoints(pts),fill:c?PALETTE[c].hex:'#eef2f6',tabindex:'0',role:'button','aria-label':`${f.name}, Dreieck ${i+1}, ${c?PALETTE[c].label:'leer'}`});p.classList.add('tri-cell');const paint=()=>{setValidation();state.testMode=null;if(state.selected==='erase')state.faces[state.currentFace][i]=null;else{const co=counts(),old=state.faces[state.currentFace][i];if(old!==state.selected&&co[state.selected]>=9){setValidation(`${PALETTE[state.selected].label} ist schon 9-mal eingetragen.`);return;}state.faces[state.currentFace][i]=state.selected;}save();renderInput();};p.addEventListener('click',paint);p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();paint();}});svg.appendChild(p);});
 }
+function renderPalette(){const h=$('palette');h.innerHTML='';COLOR_KEYS.forEach(k=>{const b=document.createElement('button');b.type='button';b.className='palette-btn'+(k===state.selected?' active':'');b.innerHTML=`<span class="swatch" style="background:${PALETTE[k].hex}"></span><span>${PALETTE[k].label}</span>`;b.onclick=()=>{state.selected=k;save();renderPalette();};h.appendChild(b);});const e=document.createElement('button');e.type='button';e.className='palette-btn'+(state.selected==='erase'?' active':'');e.innerHTML='<span class="swatch" style="display:grid;place-items:center;background:#f2f4f7">×</span><span>Löschen</span>';e.onclick=()=>{state.selected='erase';save();renderPalette();};h.appendChild(e);}
+function renderCounts(){const c=counts(),h=$('counts');h.innerHTML='';COLOR_KEYS.forEach(k=>{const d=document.createElement('span');d.className='count'+(c[k]===9?' good':c[k]>9?' bad':'');d.textContent=`${PALETTE[k].label}: ${c[k]}/9`;h.appendChild(d);});}
+function renderNav(){const i=state.currentFace,filled=state.faces[i].every(Boolean);$('prevFace').disabled=i===0;$('nextFace').hidden=i===3;$('nextFace').disabled=!filled;$('solveBtn').hidden=!(i===3||allFilled());$('solveBtn').disabled=!allFilled();}
+function renderInput(){renderTabs();renderTriangle();renderPalette();renderCounts();renderNav();}
+function toStringState(){return state.faces.flat().map(k=>k?PALETTE[k].code:'?').join('');}
+function fromStringState(s){const byCode=Object.fromEntries(COLOR_KEYS.map(k=>[PALETTE[k].code,k]));state.faces=Array.from({length:4},(_,fi)=>Array.from({length:9},(_,i)=>byCode[s[fi*9+i]]));state.currentFace=0;state.selected='green';save();renderInput();}
+function validateBasic(){if(!allFilled())return 'Es fehlen noch Farben.';const c=counts(),bad=COLOR_KEYS.filter(k=>c[k]!==9);if(bad.length)return 'Jede der vier Farben muss genau 9-mal vorkommen.';return null;}
+async function solve(){
+  setValidation();const basic=validateBasic();if(basic){setValidation(basic);return;}const start=toStringState();setStatus('Ich prüfe, ob dieser Tetraeder erreichbar ist …','busy');$('solveBtn').disabled=true;await new Promise(r=>setTimeout(r,30));
+  try{const path=Core.solveBidirectional(start,11);if(path===null){setValidation('Dieser Zustand ist mit dem aktuellen Hauptzug-Modell nicht erreichbar. Prüfe Farben und Ausrichtung. Separat verdrehte kleine Spitzen werden in dieser Teststufe noch nicht gelöst.');setStatus('Nicht erreichbarer Tetraeder-Zustand.','error');return;}if(!Core.verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=Core.buildStates(start,path);state.step=0;setStatus(path.length?`Lösung verifiziert: ${path.length} Hauptzüge.`:'Der Tetraeder ist schon gelöst.','ok');showSolve();}
+  catch(e){console.error(e);setValidation('Interner Prüffehler. Die Lösung wurde nicht angezeigt.');setStatus('Lösung konnte nicht verifiziert werden.','error');}
+  finally{$('solveBtn').disabled=false;}
+}
+function moveName(m){return{U:'obere Spitze',R:'rechte Spitze',L:'linke Spitze',B:'hintere Spitze'}[m[0]];}
+function label(m){return({U:'O',R:'R',L:'L',B:'H'}[m[0]])+(m.endsWith("'")?"'":'');}
+function describe(m){return`Schau direkt auf die ${moveName(m)}. Drehe die ganze Ebene unter dieser Spitze um 120° ${m.endsWith("'")?'gegen den Uhrzeigersinn':'im Uhrzeigersinn'}.`;}
+function renderSolution(){
+  const total=state.solution.length,m=state.solution[state.step];$('backStep').disabled=state.step===0;$('nextStep').disabled=state.step>=total;
+  if(!total){$('stepCount').textContent='0 Züge nötig';$('moveTitle').textContent='Schon gelöst';$('moveDescription').textContent='Du musst nichts drehen.';$('moveBadge').textContent='✓';$('directionCard').textContent='Schon gelöst';}
+  else if(state.step>=total){$('stepCount').textContent=`${total} von ${total} geschafft`;$('moveTitle').textContent='Geschafft';$('moveDescription').textContent='Alle Hauptzüge sind bestätigt.';$('moveBadge').textContent='✓';$('directionCard').textContent='Hauptkörper gelöst';}
+  else{$('stepCount').textContent=`Zug ${state.step+1} von ${total}`;$('moveTitle').textContent='Jetzt: '+label(m);$('moveDescription').textContent=describe(m)+' Die Markierung wiederholt sich bis zur Bestätigung.';$('moveBadge').textContent=label(m);$('directionCard').textContent=`${moveName(m)}: 120° ${m.endsWith("'")?'gegen den Uhrzeigersinn':'im Uhrzeigersinn'}`;}
+  const h=$('solutionList');h.innerHTML='';state.solution.forEach((x,i)=>{const c=document.createElement('span');c.className='move-chip'+(i<state.step?' done':i===state.step?' current':'');c.textContent=`${i+1}. ${label(x)}`;h.appendChild(c);});renderSolvePreview();renderFlat();
+}
+function renderSolvePreview(){const m=state.solution[state.step];drawScene($('solvePreview'),'tetra',.55,m);$('replayBtn').disabled=!m;if(m){const ring=$('solvePreview').querySelector('.move-ring');if(ring){ring.animate([{strokeDashoffset:0,opacity:.35},{strokeDashoffset:-48,opacity:1},{strokeDashoffset:-96,opacity:.35}],{duration:1200,iterations:Infinity});}}}
+function renderFlat(){const h=$('flatPyra');h.innerHTML='';const s=state.states[state.step]||Core.SOLVED;for(let f=0;f<4;f++){const svg=el('svg',{viewBox:'0 0 346.41 300'});svg.classList.add('mini-face-svg');TRIANGLES.forEach((pts,i)=>{const code=s[f*9+i],k=COLOR_KEYS.find(k=>PALETTE[k].code===code);svg.appendChild(el('polygon',{points:polyPoints(pts),fill:PALETTE[k]?.hex||'#eef2f6',stroke:'#101828','stroke-width':5}));});h.appendChild(svg);}}
+function showSolve(){$('inputView').hidden=true;$('solveView').hidden=false;renderSolution();}
+function showInput(){$('solveView').hidden=true;$('inputView').hidden=false;renderInput();}
+function reset(){state.faces=Array.from({length:4},()=>Array(9).fill(null));state.currentFace=0;state.selected='green';state.solution=[];state.states=[];state.step=0;state.testMode=null;try{localStorage.removeItem('rubik-pyra-separate-v2');}catch{}setValidation();setStatus('Bereit.');showInput();}
 
-let solverScriptPromise=null;
-function loadSolverMain(){
-  if(window.min2phase)return Promise.resolve(window.min2phase);if(solverScriptPromise)return solverScriptPromise;
-  solverScriptPromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=SOLVER_CDN;s.async=true;s.onload=()=>window.min2phase?resolve(window.min2phase):reject(new Error('solver missing'));s.onerror=()=>reject(new Error('solver load'));document.head.appendChild(s);});return solverScriptPromise;
-}
-function normalizeSolution(raw){if(typeof raw!=='string')return null;const s=raw.trim();if(!s||/^Error\s+\d+/i.test(s))return null;return s.replace(/\s+/g,' ');}
-
-async function solveWithWorker(facelet){
-  return new Promise((resolve,reject)=>{
-    let worker;try{worker=new Worker('./solver-worker.js');}catch(e){reject(e);return;}
-    let done=false;const timer=setTimeout(()=>{if(done)return;done=true;worker.terminate();reject(new Error('timeout'));},18000);
-    const finish=(fn)=>{if(done)return;done=true;clearTimeout(timer);worker.terminate();fn();};
-    worker.onmessage=e=>{const d=e.data||{};if(d.type==='status'){setStatus(d.text,'busy');return;}if(d.type==='candidate'){setStatus(`Ich habe ${d.count} Züge gefunden und suche noch nach einer kürzeren Lösung …`,'busy');return;}if(d.type==='invalid'){finish(()=>reject(new Error('invalid-cube')));return;}if(d.type==='done'){finish(()=>resolve(d));return;}if(d.type==='error'){finish(()=>reject(new Error(d.message||'worker-error')));}};
-    worker.onerror=()=>finish(()=>reject(new Error('worker-error')));worker.postMessage({facelet});
-  });
-}
-async function solveMainThread(facelet){
-  setStatus('Ich prüfe zuerst sehr kurze Lösungen …','busy');await new Promise(r=>setTimeout(r,40));
-  const short=shallowShortestPure(facelet,4);if(short!==null)return {solution:short,complete:true,shallowOptimal:true};
-  setStatus('Ich suche eine kurze Lösung …','busy');const solver=await loadSolverMain();solver.initFull();const search=new solver.Search();const raw=search.solution(facelet,21,100000000,10000,0);if(/^Error\s+\d+/i.test(String(raw||'')))throw new Error('invalid-cube');const solution=normalizeSolution(raw);if(!solution)throw new Error('no-solution');return {solution,complete:false,shallowOptimal:false};
-}
-async function solveCube(){
-  setValidation();const basic=validateBasic();if(basic){setValidation(basic);return;}state.isSolving=true;renderInput();$('solveBtn').textContent='Ich prüfe …';
-  try{
-    const {str,faceToColor}=buildFaceletString();setStatus('Ich prüfe die Farben und suche eine kurze Lösung …','busy');let result;
-    try{result=await solveWithWorker(str);}catch(e){console.warn('Worker fallback',e);if(e.message==='invalid-cube')throw e;result=await solveMainThread(str);}
-    if(state.testMode==='invalid'){setTestResult('Fehlertest nicht bestanden: Der unmögliche Würfel wurde nicht erkannt.','error');}
-    const moves=result.solution?.trim()?result.solution.trim().split(/\s+/):[];const states=buildStates(str,moves);if(states[states.length-1]!==SOLVED)throw new Error('verification-failed');
-    state.faceToColor=faceToColor;state.solutionMoves=moves;state.playbackStates=states;state.currentStep=0;
-    setStatus(moves.length?`Kurze Lösung gefunden: ${moves.length} Züge.`:'Dein Würfel ist schon gelöst.','ok');
-    if(state.testMode==='quick')setTestResult(moves.length===1?'Schnelltest bestanden: 1-Zug-Lösung gefunden.':`Schnelltest auffällig: ${moves.length} Züge gefunden.`,moves.length===1?'success':'error');
-    if(state.testMode==='full')setTestResult(`Großer Test: geprüfte Lösung mit ${moves.length} Zügen gefunden.`,'success');
-    showSolve();
-  }catch(e){console.error(e);if(e.message==='invalid-cube'){setValidation('So kann ein echter Zauberwürfel nicht aussehen. Prüfe die Farben und die Ausrichtung der Seiten.');setStatus('Die eingegebenen Farben passen nicht zu einem echten Würfel.','error');if(state.testMode==='invalid')setTestResult('Fehlertest bestanden: Der unmögliche Würfel wurde richtig abgelehnt.','success');}else if(e.message==='solver load'){setValidation('Zum Lösen brauche ich eine Internetverbindung.');setStatus('Solver konnte nicht geladen werden.','error');}else{setValidation('Beim Lösen ist etwas schiefgegangen. Versuche es bitte noch einmal.');setStatus('Beim Lösen ist etwas schiefgegangen.','error');}}
-  finally{state.isSolving=false;$('solveBtn').textContent='Würfel lösen';renderInput();}
-}
-
-function faceletColor(letter){const c=state.faceToColor?.[letter];return c?PALETTE[c].hex:'#cfd4dc';}
-function currentFacelet(){return state.playbackStates[state.currentStep]||SOLVED;}
-function currentMove(){return state.currentStep<state.solutionMoves.length?state.solutionMoves[state.currentStep]:null;}
-function inverseMove(m){if(!m)return'';if(m.endsWith('2'))return m;return m.endsWith("'")?m[0]:m+"'";}
-function describeMove(m){const name={F:'vordere',R:'rechte',B:'hintere',L:'linke',U:'obere',D:'untere'}[m[0]];if(m.endsWith('2'))return `Schau direkt auf die ${name} Seite. Drehe sie um 180° – eine halbe Drehung.`;if(m.endsWith("'"))return `Schau direkt auf die ${name} Seite. Drehe sie eine Vierteldrehung gegen den Uhrzeigersinn.`;return `Schau direkt auf die ${name} Seite. Drehe sie eine Vierteldrehung im Uhrzeigersinn.`;}
-function directionText(m){const n={F:'Vorne',R:'Rechts',B:'Hinten',L:'Links',U:'Oben',D:'Unten'}[m[0]];if(m.endsWith('2'))return `${n}: 180° (halbe Drehung)`;return `${n}: ${m.endsWith("'")?'gegen den Uhrzeigersinn':'im Uhrzeigersinn'}`;}
-
-function faceletCoord(f,r,c){return {F:[c-1,1-r,1],B:[1-c,1-r,-1],R:[1,1-r,1-c],L:[-1,1-r,c-1],U:[c-1,1,r-1],D:[c-1,-1,1-r]}[f];}
-function buildStickerMap(facelet){const map=new Map();SOLVER_ORDER.forEach((f,fi)=>{for(let i=0;i<9;i++){const [r,c]=[Math.floor(i/3),i%3],p=faceletCoord(f,r,c),k=p.join(',');if(!map.has(k))map.set(k,{});map.get(k)[f]=faceletColor(facelet[fi*9+i]);}});return map;}
-function cubieTransform(x,y,z){return `translate3d(${x*45}px,${-y*45}px,${z*45}px)`;}
-function cubieSide(face,color){const d=document.createElement('div');d.className='cubie-side side-'+({F:'front',B:'back',R:'right',L:'left',U:'up',D:'down'}[face]);if(color){const s=document.createElement('span');s.className='sticker3d';s.style.background=color;d.appendChild(s);}return d;}
-function makeCubie(x,y,z,stickers){const c=document.createElement('div');c.className='cubie';c.dataset.x=x;c.dataset.y=y;c.dataset.z=z;c.dataset.base=cubieTransform(x,y,z);c.style.transform=c.dataset.base;['F','B','R','L','U','D'].forEach(f=>c.appendChild(cubieSide(f,stickers?.[f])));return c;}
-function moveSpec(m){if(!m)return null;const f=m[0],axis={F:'Z',B:'Z',R:'X',L:'X',U:'Y',D:'Y'}[f],layer={F:['z',1],B:['z',-1],R:['x',1],L:['x',-1],U:['y',1],D:['y',-1]}[f];let angle={F:90,B:-90,R:90,L:-90,U:-90,D:90}[f];if(m.endsWith('2'))angle*=2;if(m.endsWith("'"))angle*=-1;return {axis,angle,layer};}
-function playAnimation(move,delay=100){const spec=moveSpec(move);if(!spec)return;const token=++state.animationToken,layer=$('cube3d').querySelector('.turning-layer');if(!layer)return;
-  const reset=()=>{layer.style.transition='none';layer.style.webkitTransition='none';layer.style.transform=`rotate${spec.axis}(0deg)`;layer.style.webkitTransform=`rotate${spec.axis}(0deg)`;};
-  const cycle=()=>{if(token!==state.animationToken)return;reset();void layer.offsetWidth;if(typeof layer.animate!=='function'){layer.style.transition='transform 800ms cubic-bezier(.22,.72,.18,1)';layer.style.webkitTransition='-webkit-transform 800ms cubic-bezier(.22,.72,.18,1)';requestAnimationFrame(()=>{if(token!==state.animationToken)return;const t=`rotate${spec.axis}(${spec.angle}deg)`;layer.style.transform=t;layer.style.webkitTransform=t;setTimeout(()=>{if(token!==state.animationToken)return;reset();setTimeout(cycle,700);},950);});return;}
-    const a=layer.animate([{transform:`rotate${spec.axis}(0deg)`,offset:0},{transform:`rotate${spec.axis}(0deg)`,offset:.1},{transform:`rotate${spec.axis}(${spec.angle}deg)`,offset:.82},{transform:`rotate${spec.axis}(${spec.angle}deg)`,offset:1}],{duration:1050,easing:'cubic-bezier(.22,.72,.18,1)',fill:'forwards'});a.finished.then(()=>{if(token!==state.animationToken){a.cancel();return;}setTimeout(()=>{if(token!==state.animationToken){a.cancel();return;}a.cancel();reset();setTimeout(cycle,280);},650);}).catch(()=>{});
-  };setTimeout(cycle,delay);
-}
-function render3D(auto=true){state.animationToken++;const host=$('cube3d');host.innerHTML='';const m=currentMove(),spec=moveSpec(m),stickers=buildStickerMap(currentFacelet());const fixed=document.createElement('div'),turning=document.createElement('div');fixed.className='cubie-layer fixed-layer';turning.className='cubie-layer turning-layer';host.append(fixed,turning);
-  for(let x=-1;x<=1;x++)for(let y=-1;y<=1;y++)for(let z=-1;z<=1;z++){const c=makeCubie(x,y,z,stickers.get([x,y,z].join(',')));const inMove=spec&&Number(c.dataset[spec.layer[0]])===spec.layer[1];(inMove?turning:fixed).appendChild(c);}
-  const cam={F:'rotateX(-22deg) rotateY(30deg)',R:'rotateX(-20deg) rotateY(-62deg)',B:'rotateX(-20deg) rotateY(148deg)',L:'rotateX(-20deg) rotateY(118deg)',U:'rotateX(-69deg) rotateY(28deg)',D:'rotateX(58deg) rotateY(28deg)'};host.style.transform=m?cam[m[0]]:cam.F;
-  const ar=$('turnArrow');ar.className='turn-arrow';if(m){if(m.endsWith("'"))ar.classList.add('ccw');if(m.endsWith('2'))ar.classList.add('half');ar.classList.add('show');if(auto)playAnimation(m,380);}$('replayBtn').disabled=!m;
-}
-function renderFlat(){const host=$('flatNet');host.innerHTML='';const pos={U:'net-u',L:'net-l',F:'net-f',R:'net-r',B:'net-b',D:'net-d'},facelet=currentFacelet(),m=currentMove();['U','L','F','R','B','D'].forEach(f=>{const d=document.createElement('div');d.className='flat-face '+pos[f]+(m&&m[0]===f?' current':'');const off=SOLVER_ORDER.indexOf(f)*9;for(let i=0;i<9;i++){const s=document.createElement('span');s.style.background=faceletColor(facelet[off+i]);d.appendChild(s);}const l=document.createElement('b');l.className='flat-label';l.textContent=faceLabel(f);d.appendChild(l);host.appendChild(d);});}
-function renderSolutionList(){const host=$('solutionList');host.innerHTML='';state.solutionMoves.forEach((m,i)=>{const s=document.createElement('span');s.className='move-chip'+(i<state.currentStep?' done':i===state.currentStep?' current':'');s.textContent=`${i+1}. ${moveLabel(m)}`;host.appendChild(s);});}
-function renderPlayback(){const total=state.solutionMoves.length,m=currentMove();$('backStepBtn').disabled=state.currentStep===0;$('nextStepBtn').disabled=state.currentStep>=total;$('directionCard').classList.remove('done');
-  if(total===0){$('stepCount').textContent='0 Züge nötig';$('moveTitle').textContent='Schon gelöst';$('moveDescription').textContent='Du musst nichts drehen.';$('moveBadge').textContent='✓';$('directionCard').textContent='Schon gelöst';$('directionCard').classList.add('done');$('finishedBox').classList.add('show');}
-  else if(state.currentStep>=total){$('stepCount').textContent=`${total} von ${total} Zügen geschafft`;$('moveTitle').textContent='Geschafft!';$('moveDescription').textContent='Du hast alle Züge bestätigt.';$('moveBadge').textContent='✓';$('directionCard').textContent='Geschafft – der Würfel ist gelöst';$('directionCard').classList.add('done');$('finishedBox').classList.add('show');}
-  else{$('stepCount').textContent=`Zug ${state.currentStep+1} von ${total}`;$('moveTitle').textContent='Jetzt: '+moveLabel(m);$('moveDescription').textContent=describeMove(m)+' Die Animation wiederholt sich, bis du den Zug bestätigst.';$('moveBadge').textContent=moveLabel(m);$('directionCard').textContent=directionText(m);$('finishedBox').classList.remove('show');}
-  renderSolutionList();render3D();renderFlat();fitViewport();
-}
-function showSolve(){document.body.classList.add('solving');$('inputView').hidden=true;$('solveView').hidden=false;renderPlayback();}
-function showInput(){document.body.classList.remove('solving');$('solveView').hidden=true;$('inputView').hidden=false;renderInput();}
-
-function loadFacelet(facelet,mode,message){SOLVER_ORDER.forEach((f,fi)=>state.faces[f]=Array.from({length:9},(_,i)=>DEFAULT_FACE_COLORS[facelet[fi*9+i]]));state.currentFace='F';state.testMode=mode;setValidation(message,'success');setTestResult();showInput();}
-function resetAll(ask=true){if(ask&&hasAnyInput()&&!confirm('Möchtest du wirklich alle Farben löschen?'))return;SOLVER_ORDER.forEach(f=>state.faces[f]=Array(9).fill(null));state.currentFace='F';state.selectedColor='white';state.solutionMoves=[];state.playbackStates=[];state.currentStep=0;state.faceToColor=null;state.testMode=null;setValidation();setTestResult();try{localStorage.removeItem('rubik-pages-input-v1');}catch{}showInput();}
-
-function updateViewport(){const h=Math.round(window.visualViewport?.height||window.innerHeight);if(h>0)document.documentElement.style.setProperty('--app-h',h+'px');}
-function overflows(){const view=$('solveView').hidden?$('inputView'):$('solveView');return view.scrollHeight>view.clientHeight+2||view.scrollWidth>view.clientWidth+2;}
-function fitViewport(){document.body.classList.remove('tight');requestAnimationFrame(()=>{if(overflows())document.body.classList.add('tight');});}
-
-$('prevFaceBtn').onclick=()=>{const i=FACE_ORDER.indexOf(state.currentFace);if(i>0){state.currentFace=FACE_ORDER[i-1];saveInput();renderInput();}};
-$('nextFaceBtn').onclick=()=>{const i=FACE_ORDER.indexOf(state.currentFace);if(!currentFaceFilled()){setValidation('Auf dieser Seite fehlen noch Farben.');return;}if(i<FACE_ORDER.length-1){state.currentFace=FACE_ORDER[i+1];saveInput();setValidation();renderInput();}};
-$('clearFaceBtn').onclick=()=>{state.faces[state.currentFace]=Array(9).fill(null);state.testMode=null;saveInput();setValidation();renderInput();};
-$('solveBtn').onclick=solveCube;$('resetBtn').onclick=()=>resetAll(true);$('editBtn').onclick=()=>{if(state.currentStep>0&&!confirm('Du hast schon Züge gemacht. Trotzdem zurück zu den Farben?'))return;showInput();};
-$('nextStepBtn').onclick=()=>{if(state.currentStep<state.solutionMoves.length){state.currentStep++;renderPlayback();}};
-$('backStepBtn').onclick=()=>{if(state.currentStep<=0)return;const undo=inverseMove(state.solutionMoves[state.currentStep-1]);if(confirm(`Mache zuerst diesen Rückwärts-Zug:\n\n${describeMove(undo)}\n\nDrücke OK, wenn du ihn gemacht hast.`)){state.currentStep--;renderPlayback();}};
-$('replayBtn').onclick=()=>{const m=currentMove();if(m)playAnimation(m,0);};
-$('testsBtn').onclick=()=>{$('testDrawer').hidden=!$('testDrawer').hidden;};
-$('quickTestBtn').onclick=()=>loadFacelet(QUICK_TEST,'quick','Schnelltest geladen. Erwartung: genau 1 Zug.');
-$('fullTestBtn').onclick=()=>loadFacelet(FULL_TEST,'full','Großer Test geladen. Erwartung: eine geprüfte längere Lösung.');
-$('invalidTestBtn').onclick=()=>loadFacelet(INVALID_TEST,'invalid','Fehlertest geladen. Erwartung: Die App muss diesen Würfel ablehnen.');
-document.addEventListener('pointerdown',e=>{if(!$('testDrawer').hidden&&!$('testDrawer').contains(e.target)&&!$('testsBtn').contains(e.target))$('testDrawer').hidden=true;});
-window.addEventListener('resize',()=>{updateViewport();fitViewport();});window.addEventListener('orientationchange',()=>setTimeout(()=>{updateViewport();fitViewport();},120));window.visualViewport?.addEventListener('resize',()=>{updateViewport();fitViewport();});
-
-if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(console.warn);
-updateViewport();loadInput();renderInput();setStatus(navigator.onLine?'Bereit.':'Offline – Eingabe funktioniert; der Solver braucht eventuell eine Verbindung.');
+$('chooseCube').onclick=()=>{location.href=CUBE_URL;};
+$('choosePyra').onclick=()=>{$('chooser').hidden=true;$('pyraApp').hidden=false;showInput();};
+$('backHome').onclick=()=>{$('pyraApp').hidden=true;$('chooser').hidden=false;};
+$('resetBtn').onclick=()=>{if(confirm('Alle Tetraeder-Farben löschen?'))reset();};
+$('prevFace').onclick=()=>{if(state.currentFace>0){state.currentFace--;save();renderInput();}};
+$('nextFace').onclick=()=>{if(state.faces[state.currentFace].every(Boolean)&&state.currentFace<3){state.currentFace++;save();renderInput();}};
+$('clearFace').onclick=()=>{state.faces[state.currentFace]=Array(9).fill(null);state.testMode=null;save();renderInput();};
+$('solveBtn').onclick=solve;
+$('nextStep').onclick=()=>{if(state.step<state.solution.length){state.step++;renderSolution();}};
+$('backStep').onclick=()=>{if(state.step>0){state.step--;renderSolution();}};
+$('editBtn').onclick=showInput;
+$('replayBtn').onclick=renderSolvePreview;
+$('knownTest').onclick=()=>{fromStringState(Core.KNOWN);setValidation("Referenztest geladen: Zustand nach L R' L' R.",'success');setStatus('4-Zug-Referenz geladen.','ok');};
+$('solvedTest').onclick=()=>{fromStringState(Core.SOLVED);setValidation('Gelöster Referenzzustand geladen.','success');setStatus('Gelöster Zustand geladen.','ok');};
+$('invalidTest').onclick=()=>{fromStringState(Core.INVALID);setValidation('Unmöglicher Zustand geladen: zwei Spitzen-Sticker wurden vertauscht.','success');setStatus('Fehlertest geladen.');};
+load();renderInput();setStatus('Bereit.');startChooserAnimation();
+window.__PYRA_TEST__={Core,TRIANGLES,state};

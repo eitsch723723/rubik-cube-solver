@@ -1,0 +1,132 @@
+.test-drawer{position:relative;z-index:20;margin:-2px 0 12px;padding:12px 14px;border:1px solid #b9d8ff;border-radius:14px;background:#f7fbff;box-shadow:0 10px 24px rgba(15,27,45,.1)}
+.test-drawer>strong{display:block;margin-bottom:8px}.test-drawer .test-buttons{margin-top:0}.test-result{min-height:1.2em;margin:8px 0 0;font-size:14px;font-weight:700;color:#475467}.test-result.success{color:#067647}.test-result.error{color:#b42318}
+/* Safari/WebKit: the continuously redrawn SVG preview must never become the pointer target. */
+.puzzle-card{touch-action:manipulation}
+.puzzle-card>*{pointer-events:none}
+@media(max-width:430px){.test-drawer{padding:10px}.test-drawer .test-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.test-drawer .btn.small{padding:8px 5px;font-size:12px}}
+
+/* The complete Tetraeder input stays inside the visible browser height. */
+body.editing-pyra{overflow:hidden;overscroll-behavior:none}
+body.editing-pyra .app{height:100dvh;max-height:100dvh;overflow:hidden;padding:max(7px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+body.editing-pyra .pyra-app{height:100%;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+body.editing-pyra header{margin-bottom:5px}
+body.editing-pyra .brand h1{font-size:clamp(22px,3.1vh,32px);line-height:1.05}
+body.editing-pyra .brand p{font-size:clamp(12px,1.7vh,16px);margin-top:2px}
+body.editing-pyra .header-actions .btn{padding:clamp(7px,1.1vh,10px) 12px;border-radius:11px}
+body.editing-pyra .status{min-height:32px;margin:0 0 6px;padding:5px 10px;font-size:clamp(12px,1.6vh,15px)}
+body.editing-pyra #inputView{min-height:0;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr)}
+body.editing-pyra .face-tabs{gap:6px;margin:0 0 6px}
+body.editing-pyra .face-tab{min-height:42px;padding:5px 3px;border-radius:10px;line-height:1.05}
+body.editing-pyra .face-tab small{margin-top:2px}
+body.editing-pyra .layout{height:100%;min-height:0}
+body.editing-pyra .input-panel{height:100%;min-height:0;overflow:hidden;padding:clamp(7px,1.2vh,13px);display:grid;grid-template-rows:auto auto minmax(120px,1fr) auto auto auto auto auto;row-gap:clamp(2px,.55vh,5px)}
+body.editing-pyra .input-head{align-items:start}
+body.editing-pyra .input-head h2{font-size:clamp(22px,3vh,29px);line-height:1.05;margin-top:2px}
+body.editing-pyra .progress{font-size:clamp(15px,2.2vh,19px);padding:5px 9px}
+body.editing-pyra .orientation{font-size:clamp(12px,1.75vh,16px);line-height:1.2;margin:0}
+body.editing-pyra .triangle-editor-wrap{position:relative;width:100%;height:100%;min-height:0;max-width:430px;margin:0 auto;padding:0 0 2px;display:grid;place-items:center}
+body.editing-pyra .triangle-editor{display:block;width:100%;height:100%;max-width:430px;max-height:100%;overflow:visible;filter:drop-shadow(0 4px 4px rgba(15,27,45,.1))}
+.triangle-orientation-label{position:absolute;z-index:2;left:50%;translate:-50% 0;max-width:90%;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(15,27,45,.14);color:#344054;font-size:clamp(10px,1.45vh,13px);font-weight:800;line-height:1.1;text-align:center;white-space:nowrap;pointer-events:none}
+.triangle-orientation-label.top{top:2px}.triangle-orientation-label.bottom{bottom:2px}
+body.editing-pyra .palette-title{font-size:clamp(11px,1.5vh,14px);line-height:1.05;margin:0}
+body.editing-pyra .palette{gap:4px}
+body.editing-pyra .palette-btn{min-height:clamp(43px,7vh,62px);padding:3px;font-size:clamp(10px,1.45vh,13px);line-height:1;border-radius:10px;gap:2px}
+body.editing-pyra .swatch{width:clamp(20px,3.5vh,30px);height:clamp(20px,3.5vh,30px)}
+body.editing-pyra .counts{gap:4px;flex-wrap:nowrap;margin:0}
+body.editing-pyra .count{font-size:clamp(10px,1.35vh,12px);line-height:1;padding:3px 6px;white-space:nowrap}
+body.editing-pyra .validation{margin:0;padding:4px 7px;font-size:clamp(10px,1.35vh,12px);line-height:1.1}
+body.editing-pyra .nav-row{display:flex;flex-wrap:nowrap;gap:4px;margin:0}
+body.editing-pyra .nav-row .btn{min-width:0;padding:clamp(6px,1vh,9px) 8px;font-size:clamp(10px,1.45vh,13px);line-height:1.1;border-radius:10px}
+body.editing-pyra .help-panel{height:100%;min-height:0;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:4px;padding:clamp(9px,1.3vh,14px)}
+body.editing-pyra .help-panel h3,body.editing-pyra .help-panel p{margin:0}
+body.editing-pyra .hold-preview{width:100%;height:100%;min-height:0;max-height:300px;align-self:center;filter:none}
+
+/* Compact Tetraeder input mode for phone-class viewports. */
+@media(max-width:720px){
+  body.editing-pyra .app{padding:max(5px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(5px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
+  body.editing-pyra .help-panel{display:none}
+  body.editing-pyra header{display:grid;grid-template-columns:1fr;gap:4px;align-items:start;margin:0 0 4px}
+  body.editing-pyra .brand h1{font-size:20px;line-height:1.05;white-space:nowrap}
+  body.editing-pyra .brand p{display:none}
+  body.editing-pyra .header-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  body.editing-pyra .header-actions .btn{font-size:11px;line-height:1.05;padding:6px 4px;border-radius:10px;white-space:nowrap}
+  body.editing-pyra .status{min-height:29px;margin:0 0 4px;padding:4px 8px;font-size:12px;border-radius:10px}
+  body.editing-pyra .status-dot{width:9px;height:9px}
+  body.editing-pyra .face-tabs{gap:4px;margin:0 0 4px}
+  body.editing-pyra .face-tab{min-height:38px;padding:4px 2px;border-radius:9px;line-height:1.05}
+  body.editing-pyra .face-tab strong{font-size:11px}
+  body.editing-pyra .face-tab small{font-size:10px;margin-top:2px}
+  body.editing-pyra .layout{display:block}
+  body.editing-pyra .input-panel{height:100%;min-height:0;overflow:hidden;padding:6px;border-radius:14px;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto auto auto auto;row-gap:3px}
+  body.editing-pyra .input-head{align-items:start;gap:6px}
+  body.editing-pyra .input-head small{font-size:11px;line-height:1}
+  body.editing-pyra .input-head h2{font-size:22px;line-height:1.05;margin:2px 0 0}
+  body.editing-pyra .progress{font-size:16px;padding:5px 8px}
+  body.editing-pyra .orientation{font-size:12px;line-height:1.15;margin:0}
+  body.editing-pyra .triangle-editor-wrap{max-width:none}
+  body.editing-pyra .triangle-editor{max-width:380px}
+  body.editing-pyra .palette-title{font-size:11px;line-height:1.05;margin:0}
+  body.editing-pyra .palette{gap:3px}
+  body.editing-pyra .palette-btn{min-height:40px;padding:2px;font-size:10px;line-height:1;border-radius:9px;gap:1px}
+  body.editing-pyra .swatch{width:20px;height:20px}
+  body.editing-pyra .counts{gap:3px;flex-wrap:nowrap;margin:0}
+  body.editing-pyra .count{font-size:10px;line-height:1;padding:3px 5px;white-space:nowrap}
+  body.editing-pyra .validation{margin:0;padding:4px 6px;font-size:10px;line-height:1.1;border-radius:7px}
+  body.editing-pyra .nav-row{display:flex;flex-wrap:nowrap;gap:3px;margin:0}
+  body.editing-pyra .nav-row .btn{flex:1;min-width:0;padding:6px 3px;font-size:10px;line-height:1.1;border-radius:9px}
+  body.editing-pyra .nav-row .primary{margin:0}
+  body.editing-pyra .nav-row #nextFace,body.editing-pyra .nav-row #solveBtn{grid-column:auto}
+}
+@media(min-width:721px) and (max-height:740px){
+  body.editing-pyra .brand p{display:none}
+  body.editing-pyra .face-tab{min-height:36px;padding:3px}
+  body.editing-pyra .input-head small,body.editing-pyra .palette-title{display:none}
+  body.editing-pyra .input-panel{grid-template-rows:auto auto minmax(100px,1fr) auto auto auto auto;row-gap:2px}
+  body.editing-pyra .palette-btn{min-height:40px}
+  body.editing-pyra .swatch{width:20px;height:20px}
+  body.editing-pyra .help-panel .small-note{display:none}
+}
+@media(max-height:500px) and (orientation:landscape){
+  body.editing-pyra .app{padding:3px max(6px,env(safe-area-inset-right)) 3px max(6px,env(safe-area-inset-left))}
+  body.editing-pyra .pyra-app{grid-template-rows:auto minmax(0,1fr)}
+  body.editing-pyra header{display:flex;align-items:center;gap:6px;min-height:32px;margin:0 0 3px}
+  body.editing-pyra .brand h1{font-size:18px;white-space:nowrap}
+  body.editing-pyra .brand p,body.editing-pyra .status,body.editing-pyra .help-panel{display:none}
+  body.editing-pyra .header-actions{display:flex;flex-wrap:nowrap;gap:3px}
+  body.editing-pyra .header-actions .btn{font-size:10px;padding:4px 6px;white-space:nowrap}
+  body.editing-pyra .face-tabs{gap:3px;margin-bottom:3px}
+  body.editing-pyra .face-tab{min-height:29px;padding:2px;font-size:10px}
+  body.editing-pyra .face-tab small{display:none}
+  body.editing-pyra .layout{display:block}
+  body.editing-pyra .input-panel{grid-template-columns:minmax(210px,.85fr) minmax(300px,1.15fr);grid-template-rows:auto auto minmax(0,1fr) auto auto auto;gap:2px 8px;padding:5px 7px}
+  body.editing-pyra .input-head{grid-column:1/-1;grid-row:1;align-items:center}
+  body.editing-pyra .input-head small{display:none}
+  body.editing-pyra .input-head h2{font-size:17px;margin:0}
+  body.editing-pyra .progress{font-size:11px;padding:2px 6px}
+  body.editing-pyra .orientation{grid-column:1/-1;grid-row:2;font-size:9px;line-height:1.1}
+  body.editing-pyra .triangle-editor-wrap{grid-column:1;grid-row:3/7;overflow:hidden}
+  body.editing-pyra .triangle-editor{max-width:260px;overflow:hidden}
+  body.editing-pyra .triangle-orientation-label{font-size:8px;padding:1px 4px}
+  body.editing-pyra .palette-title{display:none}
+  body.editing-pyra .palette{grid-column:2;grid-row:3;align-self:end}
+  body.editing-pyra .palette-btn{min-height:38px;font-size:9px}
+  body.editing-pyra .swatch{width:18px;height:18px}
+  body.editing-pyra .counts{grid-column:2;grid-row:4}
+  body.editing-pyra .count{font-size:8px;padding:2px 4px}
+  body.editing-pyra .validation{grid-column:2;grid-row:5;font-size:9px;padding:3px 5px}
+  body.editing-pyra .nav-row{grid-column:2;grid-row:6;align-self:end}
+  body.editing-pyra .nav-row .btn{font-size:9px;padding:4px 5px}
+}
+@media(max-width:430px) and (max-height:760px){
+  body.editing-pyra .brand h1{font-size:18px}
+  body.editing-pyra .header-actions .btn{font-size:10px;padding:5px 3px}
+  body.editing-pyra .status{min-height:26px;font-size:11px;padding:3px 7px}
+  body.editing-pyra .face-tab{min-height:34px;padding:3px 2px}
+  body.editing-pyra .input-head h2{font-size:20px}
+  body.editing-pyra .orientation{font-size:11px}
+  body.editing-pyra .palette-title{display:none}
+  body.editing-pyra .palette-btn{min-height:36px}
+  body.editing-pyra .swatch{width:18px;height:18px}
+  body.editing-pyra .count{font-size:9px;padding:2px 4px}
+  body.editing-pyra .nav-row .btn{font-size:9px;padding:5px 2px}
+}
