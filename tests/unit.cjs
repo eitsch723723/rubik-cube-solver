@@ -2,6 +2,18 @@
 const assert=require('node:assert/strict');
 const Core=require('../tetra-core.js');
 
+const expectedInputToSolver=[
+  [0,1,3,4,6,7,2,5,8],
+  [0,1,3,4,6,8,2,5,7],
+  [0,1,3,5,6,8,2,4,7],
+  [0,3,1,8,6,5,2,7,4]
+];
+assert.deepEqual(Core.INPUT_TO_SOLVER,expectedInputToSolver,'visible triangles must map to the physical face orientation');
+for(let face=0;face<4;face++)for(let input=0;input<9;input++){
+  const solver=Core.inputIndexToSolver(face,input);
+  assert.equal(Core.solverIndexToInput(face,solver),input,`input mapping is not reversible for face ${face}, triangle ${input}`);
+}
+
 for(const m of Core.MOVES){
   const back=Core.applyMove(Core.applyMove(Core.SOLVED,m),Core.inverse(m));
   assert.equal(back,Core.SOLVED,`inverse failed for ${m}`);
@@ -33,4 +45,4 @@ for(let c=0;c<20;c++){
   const sol=Core.solveFull(s,11);assert.ok(sol,`random case ${c} unsolved: ${seq.join(' ')}`);assert.ok(Core.verifySolution(s,sol),`random case ${c} verification failed: ${seq.join(' ')}`);randomCases++;
 }
 
-console.log(`Tetraeder unit regression passed: known=${known.length}, full=${fullSolution.length}, tip=${tipSolution.length}, deterministicRandom=${randomCases}`);
+console.log(`Tetraeder unit regression passed: inputMapping=36, known=${known.length}, full=${fullSolution.length}, tip=${tipSolution.length}, deterministicRandom=${randomCases}`);

@@ -13,6 +13,31 @@
   const TIP_CYCLES={u:[0,18,9],r:[7,32,23],l:[4,17,35],b:[13,26,27]};
   const TIP_POSITIONS=new Set(Object.values(TIP_CYCLES).flat());
   const BODY_POSITIONS=Array.from({length:36},(_,i)=>i).filter(i=>!TIP_POSITIONS.has(i));
+  // Solver positions follow the move model, while the editor follows the
+  // triangles as they appear to the person holding the puzzle. Keep these
+  // mappings central so the editor, flat previews and 3D view cannot drift.
+  const SOLVER_TO_GEOM=[
+    [0,1,6,2,3,7,4,5,8],
+    [0,1,6,2,3,7,4,8,5],
+    [0,1,6,2,7,3,4,8,5],
+    [3,4,7,1,8,5,2,6,0]
+  ];
+  const SOLVER_TO_INPUT=[
+    [0,1,6,2,3,7,4,5,8],
+    [0,1,6,2,3,7,4,8,5],
+    [0,1,6,2,7,3,4,8,5],
+    // U is shown with the rear corner at the top and the former front edge
+    // at the bottom. This is a different viewing orientation than the 3D face.
+    [0,2,6,1,8,5,4,7,3]
+  ];
+  const INPUT_TO_SOLVER=SOLVER_TO_INPUT.map(mapping=>{
+    const inverse=Array(9);
+    mapping.forEach((inputIndex,solverIndex)=>{inverse[inputIndex]=solverIndex;});
+    return inverse;
+  });
+
+  function inputIndexToSolver(faceIndex,inputIndex){return INPUT_TO_SOLVER[faceIndex][inputIndex];}
+  function solverIndexToInput(faceIndex,solverIndex){return SOLVER_TO_INPUT[faceIndex][solverIndex];}
 
   function cycle(a,x,y,z){const t=a[x];a[x]=a[y];a[y]=a[z];a[z]=t;}
   function quarterMain(s,face){
@@ -127,5 +152,5 @@
     return goalsFor(start).includes(s);
   }
   function buildStates(start,moves){const out=[start];let s=start;for(const m of moves){s=applyMove(s,m);out.push(s);}return out;}
-  return {MAIN_MOVES,TIP_MOVES,MOVES,SOLVED,KNOWN,INVALID,TIP_CYCLES,TIP_POSITIONS,BODY_POSITIONS,quarterMain,quarterTip,applyMove,inverse,goalsFor,bodyKey,solveMainBody,solveTips,solveFull,solveBidirectional,verifySolution,buildStates};
+  return {MAIN_MOVES,TIP_MOVES,MOVES,SOLVED,KNOWN,INVALID,TIP_CYCLES,TIP_POSITIONS,BODY_POSITIONS,SOLVER_TO_GEOM,SOLVER_TO_INPUT,INPUT_TO_SOLVER,inputIndexToSolver,solverIndexToInput,quarterMain,quarterTip,applyMove,inverse,goalsFor,bodyKey,solveMainBody,solveTips,solveFull,solveBidirectional,verifySolution,buildStates};
 });

@@ -1,6 +1,10 @@
-import { chromium, webkit } from 'playwright';
+import { createRequire } from 'node:module';
 
-const BASE = 'https://eitsch723723.github.io/rubik-cube-solver/';
+const require = createRequire(import.meta.url);
+const { chromium, webkit } = require('playwright');
+
+const BASE = process.env.PRODUCTION_BASE || 'https://eitsch723723.github.io/rubik-cube-solver/';
+const BROWSERS = (process.env.SMOKE_BROWSERS || 'chromium,webkit').split(',').map(name => name.trim()).filter(Boolean);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 
@@ -126,6 +130,34 @@ async function testTetra(page) {
   await page.locator('.face-tab').nth(3).click();
   await expectTetraInputFits(page);
 
+  const physicalInput = await page.evaluate(() => {
+    const api = window.__PYRA_TEST__;
+    const expectedInputToSolver = [
+      [0,1,3,4,6,7,2,5,8],
+      [0,1,3,4,6,8,2,5,7],
+      [0,1,3,5,6,8,2,4,7],
+      [0,3,1,8,6,5,2,7,4]
+    ];
+    const paletteIndex = { g: 0, r: 1, b: 2, y: 3 };
+    const moves = ['U','R',"L'",'B',"U'",'L',"R'",'B','u',"r'",'l','b'];
+    const solverState = moves.reduce((value, move) => api.Core.applyMove(value, move), api.Core.SOLVED);
+    for (let face = 0; face < 4; face++) {
+      document.querySelectorAll('.face-tab')[face].click();
+      const displayCodes = expectedInputToSolver[face].map(solverIndex => solverState[face * 9 + solverIndex]);
+      for (const code of Object.keys(paletteIndex)) {
+        document.querySelectorAll('.palette-btn')[paletteIndex[code]].click();
+        for (let inputIndex = 0; inputIndex < 9; inputIndex++) {
+          if (displayCodes[inputIndex] === code) document.querySelectorAll('.tri-cell')[inputIndex].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+      }
+    }
+    return { solverState, enteredState: api.toStringState() };
+  });
+  assert(physicalInput.enteredState === physicalInput.solverState, 'Visible Tetraeder input is mapped to the wrong solver positions');
+  await page.locator('#solveBtn').click();
+  await page.locator('#solveView').waitFor({ state: 'visible', timeout: 30000 });
+  assert((await page.locator('#statusText').innerText()).includes('Lösung verifiziert'), 'Physically reachable visible input was rejected');
+
   await page.setViewportSize({ width: 402, height: 740 });
   await resetRootState(page, 'tetra-full');
   await page.locator('#choosePyra').click();
@@ -184,7 +216,7 @@ async function testStaticAssets(context) {
   const sw = await context.request.get(`${BASE}sw.js?smoke=${Date.now()}`);
   assert(sw.ok(), `Service worker request failed: ${sw.status()}`);
   const swText = await sw.text();
-  assert(swText.includes('rubik-puzzle-pwa-v7'), 'Combined-app service worker is not deployed');
+  assert(swText.includes('rubik-puzzle-pwa-v8'), 'Combined-app service worker is not deployed');
   const worker = await context.request.get(`${BASE}cube/solver-worker.js?smoke=${Date.now()}`);
   assert(worker.ok(), `Cube worker request failed: ${worker.status()}`);
   const workerText = await worker.text();
@@ -192,8 +224,16 @@ async function testStaticAssets(context) {
   assert(!workerText.includes('@master/min2phase.js'), 'Cube worker still references mutable min2phase @master');
 }
 
-for (const [name, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) {
-  const browser = await browserType.launch();
+const browserTypes = { chromium: ['Chromium', chromium], webkit: ['WebKit', webkit] };
+const passedBrowsers = [];
+for (const browserName of BROWSERS) {
+  const selected = browserTypes[browserName];
+  if (!selected) throw new Error(`Unknown smoke-test browser: ${browserName}`);
+  const [name, browserType] = selected;
+  const launchOptions = browserName === 'chromium' && process.env.CHROMIUM_EXECUTABLE_PATH
+    ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
+    : {};
+  const browser = await browserType.launch(launchOptions);
   const context = await browser.newContext({ viewport: { width: 402, height: 740 } });
   const page = await context.newPage();
   await waitForCombinedProduction(page);
@@ -201,7 +241,8 @@ for (const [name, browserType] of [['Chromium', chromium], ['WebKit', webkit]]) 
   await testCube(page);
   await testTetra(page);
   await browser.close();
+  passedBrowsers.push(name);
   console.log(`${name} production smoke passed.`);
 }
 
-console.log('Post-deployment production smoke passed in Chromium and WebKit.');
+console.log(`Post-deployment production smoke passed in ${passedBrowsers.join(' and ')}.`);

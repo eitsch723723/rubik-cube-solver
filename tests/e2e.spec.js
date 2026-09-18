@@ -16,6 +16,25 @@ async function loadPyraTest(page,button){
   await page.locator(button).click();
   await expect(page.locator('#solveBtn')).toBeVisible();
 }
+const INPUT_TO_SOLVER=[
+  [0,1,3,4,6,7,2,5,8],
+  [0,1,3,4,6,8,2,5,7],
+  [0,1,3,5,6,8,2,4,7],
+  [0,3,1,8,6,5,2,7,4]
+];
+const PALETTE_INDEX={g:0,r:1,b:2,y:3};
+async function enterPhysicalTetraState(page,solverState){
+  for(let face=0;face<4;face++){
+    await page.locator('.face-tab').nth(face).click();
+    const displayCodes=INPUT_TO_SOLVER[face].map(solverIndex=>solverState[face*9+solverIndex]);
+    for(const code of Object.keys(PALETTE_INDEX)){
+      await page.locator('.palette-btn').nth(PALETTE_INDEX[code]).click();
+      for(let inputIndex=0;inputIndex<9;inputIndex++)if(displayCodes[inputIndex]===code){
+        await page.locator('.tri-cell').nth(inputIndex).click({force:true});
+      }
+    }
+  }
+}
 async function expectSolveFitsViewport(page){
   await expect(page.locator('#solveView')).toBeVisible();
   const fit=await page.evaluate(()=>{
@@ -125,6 +144,23 @@ test('Tetraeder impossible state is rejected',async({page})=>{
   await loadPyraTest(page,'#invalidTestBtn');await page.locator('#solveBtn').click();
   await expect(page.locator('#statusText')).toContainText('physikalisch nicht erreichbar');await expect(page.locator('#solveView')).toBeHidden();
   await expect(page.locator('#testResult')).toContainText('Fehlertest bestanden');
+});
+
+test('Reachable Tetraeder entered through all visible triangles is mapped and solved correctly',async({page})=>{
+  await openPyra(page);
+  const solverState=await page.evaluate(()=>{
+    const moves=['U','R',"L'",'B',"U'",'L',"R'",'B','u',"r'",'l','b'];
+    return moves.reduce((value,move)=>window.__PYRA_TEST__.Core.applyMove(value,move),window.__PYRA_TEST__.Core.SOLVED);
+  });
+  await enterPhysicalTetraState(page,solverState);
+  expect(await page.evaluate(()=>window.__PYRA_TEST__.toStringState())).toBe(solverState);
+  await page.locator('#solveBtn').click();
+  await expect(page.locator('#solveView')).toBeVisible();
+  await expect(page.locator('#statusText')).toContainText('Lösung verifiziert');
+  expect(await page.evaluate(()=>{
+    const api=window.__PYRA_TEST__;
+    return api.state.states[0]===api.toStringState()&&api.Core.verifySolution(api.state.states[0],api.state.solution);
+  })).toBe(true);
 });
 
 test('Reduced motion disables continuous Tetraeder turn animation',async({page})=>{
