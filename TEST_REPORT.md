@@ -1,104 +1,78 @@
-# Testbericht – GitHub-Pages-Version
+# Testbericht
 
-Datum: 2026-09-13
+Stand: 2026-09-18
 
-## Durchgeführte Prüfungen
+Dieser Bericht beschreibt den automatisierten Testumfang des kombinierten Rubik-Cube-/Tetraeder-Solvers. Er unterscheidet ausdrücklich zwischen Code-Review, automatisierten Browser-/Unit-Tests und realen Geräte-/Safari-Tests.
 
-### Statische Prüfungen
+## Automatisierte Tests
 
-- `app.js`, `solver-worker.js` und `sw.js` mit `node --check`: **bestanden**
-- `manifest.webmanifest` als JSON eingelesen: **bestanden**
-- Manifest: `start_url: ./`, `scope: ./`, `display: standalone`: **bestanden**
-- Home-Screen-Icons: 180×180, 192×192, 512×512: **bestanden**
-- doppelte HTML-IDs: **keine**
-- JavaScript-Verweise auf fehlende HTML-IDs: **keine**
-- lokale HTML/CSS/JS/Manifest/Icon-Pfade: **alle vorhanden**
-- `.nojekyll`: **vorhanden**
+Der GitHub-Actions-Workflow erstellt vor dem Deployment ein deterministisches GitHub-Pages-Artefakt ausschließlich aus Dateien dieses Repositorys. Cube und Tetraeder liegen gemeinsam in `rubik-cube-solver`; es wird kein Anwendungscode aus einem anderen Repository geladen. Die `min2phase.js`-Abhängigkeit ist im lokalen Cube-Worker auf den unveränderlichen Commit `0ba83a6177d816f72af1a45c9015349da597456a` festgelegt.
 
-### Würfel-Logik
+### Syntax und Build
 
-- interne Würfelzug-Engine: **bestanden**
-  - `R` erzeugt exakt den gespeicherten Schnelltestzustand
-  - der bekannte 18-Züge-Mix erzeugt exakt den gespeicherten großen Testwürfel
-  - die inverse Folge führt wieder exakt zum gelösten Würfel
-  - der Schnelltest wird intern als `R'` in genau einem Zug erkannt
-  - der absichtlich unmögliche Testwürfel enthält trotzdem jede Farbe genau neunmal
+- JavaScript-Syntaxprüfung für Root-App, Feature-Module, Tetraeder-Core, Tetraeder-Worker, Visualisierung und Service Worker.
+- JavaScript-Syntaxprüfung für den lokalen Cube-Löser und dessen Worker.
+- Build-Abbruch, falls eine erforderliche lokale Datei fehlt oder die geprüfte Cube-Solver-Pinnung verändert wurde.
 
-### Automatisierte Browser-Regression
+### Tetraeder-Unit-Regression
 
-Die App wurde mit Chromium automatisiert in folgenden Viewports geprüft:
+- bekannte Referenzsequenz,
+- vollständige Hauptzug-Sequenz,
+- unabhängige Spitzendrehung,
+- inverse Zugbeziehungen,
+- physikalisch nicht erreichbarer Zustand,
+- 20 deterministisch erzeugte Scrambles,
+- erneute Ausführung und Verifikation jeder berechneten Lösung mit derselben internen Move-Engine.
 
-- Desktop: 1440×900
-- iPhone Hochformat: 390×844
-- iPhone Querformat: 844×390
-- iPad Hochformat: 820×1180
-- iPad Querformat: 1180×820
+Der zuletzt bestätigte P2-Lauf meldete: `known=4`, `full=11`, `tip=1`, `deterministicRandom=20`.
 
-Geprüft wurden dabei:
+### Browser-E2E
 
-- keine horizontale oder vertikale Seitenscrollbar
-- zentrale Eingabebedienelemente vollständig im sichtbaren Bereich
-- Schnelltest findet genau `R'`
-- Lösungsanzeige enthält genau einen Zug
-- die animierte Schicht enthält genau 9 Cubies
-- Bestätigen des Zuges führt zum Fertig-Zustand
-- zentrale Bedienelemente der Lösungsansicht bleiben sichtbar
-- keine JavaScript-Fehler im automatisierten Test
+Die E2E-Suite wurde lokal am 2026-09-18 jeweils vollständig in Chromium und WebKit ausgeführt: **13 von 13 Tests bestanden**. Der GitHub-Actions-Workflow führt dieselbe Suite vor jeder Veröffentlichung erneut aus. Geprüft werden unter anderem:
 
-Ergebnis nach Korrektur: **alle fünf Viewports bestanden**.
+- Puzzle-Auswahl und lokaler Wechsel zum eingebetteten Cube-Löser,
+- Rückkehr zur Puzzle-Auswahl,
+- Tetraeder-Schnelltest und vollständiger Test inklusive unabhängiger Spitzenzüge,
+- Ablehnung unmöglicher Tetraederzustände,
+- exakte Zuordnung zwischen Solver-Move und animierter Ebene,
+- permanente Orientierungsmarker `V`, `L`, `R`, `U`,
+- Reduced Motion,
+- Pause/Fortsetzung der Animation bei ausgeblendeter Seite,
+- Speicherung und validierte Wiederherstellung des Lösungsfortschritts,
+- unveränderliche `min2phase.js`-Pinnung im erzeugten Pages-Build,
+- Tetraeder-Eingabe ohne Seiten-Scrollen auf 402×740 px (iPhone-Portrait mit reduziertem Safari-Höhenbereich), 1180×820 px (iPad Landscape), 1280×720 px und 1440×900 px (Laptop/Desktop),
+- eindeutige Unterseiten-Ausrichtung mit aufrechtem Dreieck, „Hintere Ecke“ oben und „Frühere Vorderkante“ unten beim Betrachter,
+- Tetraeder-Lösungsansicht auf demselben iPhone-Portrait-Viewport: die SVG-Animation bleibt vollständig zwischen Richtungsanzeige und Replay-Button innerhalb ihres Panels, die reale große Testlösung wird vollständig angezeigt und eine 15-Zug-Maximalliste wird ohne horizontales oder vertikales Scrollen der Zugliste gleichzeitig dargestellt,
+- iPhone-Landscape-Lösungsansicht ohne unerwünschtes Seitenscrolling,
+- iPad Portrait und Landscape,
+- Release-Oberfläche ohne `TESTVERSION`-Banner und ohne „Testversion“ im Seitentitel.
 
-### Regression nach realem iPhone-17-Pro-Safari-Fehlerbild
+Die iPhone-17-Pro-Portrait-Regressionsprüfung verwendet absichtlich weniger als die volle Gerätehöhe, um die durch Safari-Adress-/Toolbar belegte Fläche konservativ zu berücksichtigen. Sie ist trotzdem eine automatisierte Viewport-Simulation und kein physischer Gerätetest.
 
-Auf einem vom Nutzer bereitgestellten Screenshot eines aktuellen iPhone 17 Pro mit Safari waren Eingabe- und Lösungsansicht gleichzeitig sichtbar. Dadurch wurde die Eingabeansicht vertikal abgeschnitten und eine leere Lösungs-/Animationsansicht angezeigt.
+## Deployment-Gate
 
-Ursache: Die Komponentenregeln `.input-view{display:grid}` und insbesondere `.solve-view{display:block}` konnten den HTML-Zustand `hidden` überschreiben. Zusätzlich konnte der bestehende Service Worker nach einem Deployment zunächst ältere CSS-/JS-Dateien aus dem Cache liefern.
+GitHub Pages wird nur nach erfolgreichem Build und erfolgreicher Regression deployed. Das getestete Artefakt wird anschließend veröffentlicht; danach prüft ein Smoke-Test die veröffentlichte Cube- und Tetraeder-App erneut in Chromium und WebKit. Dieser lokale Branch wurde noch nicht veröffentlicht.
 
-Korrektur:
+## Code-Review
 
-- globaler browserunabhängiger Schutz `[hidden]{display:none!important}`
-- kompaktere iPhone-Hochformatwerte für Eingabepanel, Orientierung, Würfelfläche, Palette und Navigation
-- versionierte CSS-/JS-URLs zur Cache-Invalidierung
-- Service-Worker-Cache auf `rubik-solver-pwa-v2` erhöht
-- lokale App-Ressourcen werden online jetzt network-first geladen und nur offline aus dem Cache verwendet
+Bei Änderungen werden insbesondere folgende Kopplungen geprüft:
 
-Das **exakt von GitHub Pages erzeugte Deployment-Artefakt** wurde anschließend erneut automatisiert geprüft mit:
+- Solver-Move ↔ interner Cube-/Tetraeder-State,
+- Move ↔ Textanweisung,
+- Move ↔ betroffene Ebene und Drehrichtung der Animation,
+- State nach Bestätigung ↔ dargestellte Sticker,
+- relative Pfade, Service-Worker-Cache und GitHub-Pages-Unterpfad,
+- Safe Areas und dynamische Viewports nach Layoutänderungen,
+- Begrenzung der 3D-Animation auf ihren eigenen Layoutbereich und vollständige Sichtbarkeit der Lösungszugfolge.
 
-- 402×874 CSS-Pixel (iPhone-17-Pro-typischer Hochformat-Viewport)
-- 402×730 CSS-Pixel (absichtlich reduzierter Viewport zur Simulation sichtbarer Safari-Browserleisten)
+## Nicht durchgeführt
 
-Beide Tests bestanden:
+Für den hier dokumentierten Stand wurde **kein realer Browser-/Gerätetest auf einem physischen iPhone oder iPad** durchgeführt. WebKit-Tests und emulierte Viewportgrößen sind eine automatisierte Regression, aber kein Ersatz für einen realen Safari-Gerätetest.
 
-- initial nur die Eingabeansicht sichtbar; Lösungsansicht `display:none`
-- Eingabefläche vollständig sichtbar
-- Palette vollständig sichtbar
-- Navigation vollständig innerhalb des Panels und Viewports
-- keine View-Überläufe
-- Umschalten auf die Lösungsansicht blendet die Eingabe vollständig aus
-- 3D-Würfel enthält 27 Cubies
-- drehende Ebene enthält exakt 9 Cubies, feste Ebene 18
-- bekannter Schnelltest zeigt `R'`
-- Bestätigen führt zu `Geschafft!`
-- auch im reduzierten 402×730-Viewport kein Lösungsansicht-Overflow
+Reale Gerätetests dürfen in diesem Bericht erst als bestanden markiert werden, wenn sie tatsächlich durchgeführt wurden.
 
-### WebKit/Safari-Teststatus
+## Veröffentlichung
 
-Ein automatisierter Playwright-WebKit-Test wurde vorbereitet, konnte in der Ausführungsumgebung aber **nicht gestartet werden**, weil die WebKit-Browser-Binary nicht installiert war. Der Nachinstallationsversuch scheiterte an der gesperrten externen Netzwerkauflösung der Testumgebung. Deshalb wird kein automatisierter Safari-Test behauptet.
+GitHub Pages:
 
-Das reale iPhone-17-Pro-Safari-Fehlerbild stammt vom Nutzer. Ein realer Gerätetest **nach** dem Fix steht noch aus.
-
-## Korrigierte Punkte während der Prüfung
-
-- Solver-Fallback prüft zuerst Lösungen bis Tiefe 4 exakt, bevor die Zwei-Phasen-Suche gestartet wird.
-- `Array.prototype.at(-1)` wurde durch eine ältere-Safari-kompatiblere Indexabfrage ersetzt.
-- Service-Worker-Pfade werden aus dem tatsächlichen Scope berechnet; dadurch funktionieren sie auch unter `https://NAME.github.io/REPOSITORY/`.
-- Für kleine Viewports wurde ein `tight`-Darstellungsmodus ergänzt.
-- Bei der Regression wurde ein Layoutfehler im iPhone-Querformat gefunden: Farbpalette und Navigation lagen teilweise unterhalb des sichtbaren Bereichs. Die Querformatdarstellung wurde auf ein kompaktes Zwei-Spalten-Layout umgestellt und danach erneut erfolgreich getestet.
-- doppelte Icon-Dateien im Repository-Stamm wurden entfernt; die gültigen Icons liegen ausschließlich unter `icons/`.
-- Safari-Fehler mit gleichzeitig sichtbarer Eingabe- und Lösungsansicht behoben.
-- PWA-Cache-Strategie gegen veraltete Layout-Dateien nach Deployments gehärtet.
-
-## GitHub Pages
-
-GitHub Pages ist aktiviert und wird über `.github/workflows/pages.yml` ausgerollt. Der aktuelle Safari-Fix wurde erfolgreich als GitHub-Pages-Deployment veröffentlicht.
-
-Live-URL: `https://eitsch723723.github.io/rubik-cube-solver/`
+`https://eitsch723723.github.io/rubik-cube-solver/`
