@@ -1,6 +1,6 @@
 # Testbericht
 
-Stand: 2026-09-18
+Stand: 2026-09-19
 
 Dieser Bericht beschreibt den automatisierten Testumfang des kombinierten Rubik-Cube-/Tetraeder-Solvers. Er unterscheidet ausdrücklich zwischen Code-Review, automatisierten Browser-/Unit-Tests und realen Geräte-/Safari-Tests.
 
@@ -22,10 +22,13 @@ Der GitHub-Actions-Workflow erstellt vor dem Deployment ein deterministisches Gi
 - inverse Zugbeziehungen,
 - physikalisch nicht erreichbarer Zustand,
 - vollständige und umkehrbare Zuordnung aller 36 sichtbaren Eingabefelder zu den Solver-Positionen,
+- fest eingetragene reale Pyraminx-Stellung in sichtbarer Eingabereihenfolge, ohne Erzeugung durch Solver-Züge,
+- Lösung und erneute Verifikation dieser realen Stellung,
+- Diagnose einer horizontal anders herum eingegebenen Unterseite, ohne automatische Farbänderung,
 - 20 deterministisch erzeugte Scrambles,
 - erneute Ausführung und Verifikation jeder berechneten Lösung mit derselben internen Move-Engine.
 
-Der zuletzt bestätigte P2-Lauf meldete: `inputMapping=36`, `known=4`, `full=11`, `tip=1`, `deterministicRandom=20`.
+Der zuletzt bestätigte Unit-Lauf meldete: `inputMapping=36`, `physicalFixture=8`, `known=4`, `full=11`, `tip=1`, `deterministicRandom=20`.
 
 ### Browser-E2E
 
@@ -35,7 +38,8 @@ Die E2E-Suite wird lokal und im GitHub-Actions-Workflow vollständig in Chromium
 - Rückkehr zur Puzzle-Auswahl,
 - Tetraeder-Schnelltest und vollständiger Test inklusive unabhängiger Spitzenzüge,
 - Ablehnung unmöglicher Tetraederzustände,
-- Eingabe einer erreichbaren Stellung über alle 36 sichtbaren Dreiecke und anschließende verifizierte Lösung,
+- Eingabe der fest hinterlegten realen Pyraminx-Stellung über alle 36 sichtbaren Dreiecke und anschließende verifizierte Lösung,
+- gezielter Unterseiten-Hinweis, wenn nur eine horizontale Links-/Rechts-Umkehrung der Unterseite erreichbar ist,
 - exakte Zuordnung zwischen Solver-Move und animierter Ebene,
 - permanente Orientierungsmarker `V`, `L`, `R`, `U`,
 - Reduced Motion,
@@ -43,11 +47,13 @@ Die E2E-Suite wird lokal und im GitHub-Actions-Workflow vollständig in Chromium
 - Speicherung und validierte Wiederherstellung des Lösungsfortschritts,
 - unveränderliche `min2phase.js`-Pinnung im erzeugten Pages-Build,
 - Tetraeder-Eingabe ohne Seiten-Scrollen auf 402×740 px (iPhone-Portrait mit reduziertem Safari-Höhenbereich), 1180×820 px (iPad Landscape), 1280×720 px und 1440×900 px (Laptop/Desktop),
-- eindeutige Unterseiten-Ausrichtung mit aufrechtem Dreieck, „Hintere Ecke“ oben und „Frühere Vorderkante“ unten beim Betrachter,
+- eindeutige Unterseiten-Ausrichtung mit hinterer Ecke oben sowie ausdrücklich benannter früherer rechter V-Ecke unten links und früherer linker V-Ecke unten rechts,
 - Tetraeder-Lösungsansicht auf demselben iPhone-Portrait-Viewport: die SVG-Animation bleibt vollständig zwischen Richtungsanzeige und Replay-Button innerhalb ihres Panels, die reale große Testlösung wird vollständig angezeigt und eine 15-Zug-Maximalliste wird ohne horizontales oder vertikales Scrollen der Zugliste gleichzeitig dargestellt,
 - iPhone-Landscape-Lösungsansicht ohne unerwünschtes Seitenscrolling,
 - iPad Portrait und Landscape,
 - Release-Oberfläche ohne `TESTVERSION`-Banner und ohne „Testversion“ im Seitentitel.
+
+Der abschließende lokale Lauf am 2026-09-19 bestand mit `32 passed`: 16 Tests in Chromium und dieselben 16 Tests in WebKit.
 
 Die iPhone-17-Pro-Portrait-Regressionsprüfung verwendet absichtlich weniger als die volle Gerätehöhe, um die durch Safari-Adress-/Toolbar belegte Fläche konservativ zu berücksichtigen. Sie ist trotzdem eine automatisierte Viewport-Simulation und kein physischer Gerätetest.
 

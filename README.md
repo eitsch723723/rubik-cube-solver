@@ -36,7 +36,9 @@ Für **Unten (U)** bleibt das Eingabedreieck aufrecht:
 
 - die einzelne hintere Ecke liegt oben;
 - die frühere Vorderkante liegt unten beim Betrachter;
-- eine eigene Orientierungsgrafik und Beschriftungen zeigen diese Ausrichtung.
+- unten links liegt die Ecke, die bei **Vorne (V)** rechts war;
+- unten rechts liegt die Ecke, die bei **Vorne (V)** links war;
+- eine kleine Rotationsgrafik und Beschriftungen zeigen den Wechsel von Vorne zur Unterseite.
 
 Die sichtbaren Dreiecksfelder jeder Seite werden dabei auf die tatsächliche räumliche Position am Tetraeder abgebildet. Dadurch können nach dieser Anleitung eingegebene physikalisch erreichbare Stellungen zuverlässig geprüft und gelöst werden.
 
@@ -59,6 +61,13 @@ npx playwright test --config=tests/playwright.config.js
 Details und die Abgrenzung zu realen Gerätetests stehen in [TEST_REPORT.md](./TEST_REPORT.md).
 
 ## Was geändert wurde
+
+### 2026-09-19
+
+- Die Links-/Rechts-Zuordnung der sichtbaren Unterseite wurde an die Außenansicht eines echten Pyraminx angepasst. Die Solver-Züge und die 3D-Geometrie blieben unverändert.
+- Eine fest eingetragene, an einem realen Puzzle abgelesene Stellung schützt die physische Orientierung unabhängig vom Solver als Unit-, Browser- und Deployment-Regression.
+- Wenn nur eine horizontal anders herum eingegebene Unterseite einen gültigen Zustand ergibt, weist die App gezielt auf die beiden Enden der früheren Vorderkante hin, ohne Farben automatisch zu verändern.
+- Die Unterseiten-Anleitung benennt beide früheren Vorder-Ecken ausdrücklich und zeigt den Wechsel von Vorne (V) zu Unten (U).
 
 ### 2026-09-18
 
