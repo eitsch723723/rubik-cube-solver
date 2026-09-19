@@ -1,9 +1,9 @@
 'use strict';
-const CACHE='rubik-puzzle-pwa-v8';
+const CACHE='rubik-puzzle-pwa-v9';
 const BASE=new URL('./',self.location.href);
 const LOCAL=[
   './','./index.html','./styles.css?v=20260918-1','./features.css?v=20260918-1','./tetra-visuals.css?v=20260918-2',
-  './tetra-core.js?v=20260918-2','./tetra-worker.js?v=20260918-1','./app.js?v=20260918-2','./release-fixes.js?v=20260918-1','./features.js?v=20260918-1','./tetra-visuals.js?v=20260918-2',
+  './tetra-core.js?v=20260919-1','./tetra-worker.js?v=20260919-1','./app.js?v=20260919-1','./release-fixes.js?v=20260919-1','./features.js?v=20260918-1','./tetra-visuals.js?v=20260918-2',
   './manifest.webmanifest','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png',
   './cube/','./cube/index.html','./cube/styles.css?v=20260913-2','./cube/app.js?v=20260913-2','./cube/solver-worker.js','./cube/manifest.webmanifest',
   './cube/icons/apple-touch-icon.png','./cube/icons/icon-192.png','./cube/icons/icon-512.png'

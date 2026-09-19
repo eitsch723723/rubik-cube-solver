@@ -7,7 +7,7 @@
   function solveInWorker(start){
     if(typeof Worker==='undefined')return Promise.resolve(Core.solveFull(start,11));
     return new Promise((resolve,reject)=>{
-      const id=++seq,w=new Worker('./tetra-worker.js?v=20260918-1'),timer=setTimeout(()=>{w.terminate();reject(new Error('timeout'));},20000);
+      const id=++seq,w=new Worker('./tetra-worker.js?v=20260919-1'),timer=setTimeout(()=>{w.terminate();reject(new Error('timeout'));},20000);
       const done=fn=>{clearTimeout(timer);w.terminate();fn();};
       w.onmessage=e=>{const d=e.data||{};if(d.id!==id)return;if(d.type==='status'){window.setStatus(d.text,'busy');return;}if(d.type==='done')done(()=>resolve(d.moves));else if(d.type==='error')done(()=>reject(new Error(d.message||'worker-error')));};
       w.onerror=()=>done(()=>reject(new Error('worker-error')));w.postMessage({id,type:'solve',start,maxDepth:11});
@@ -49,7 +49,7 @@
   window.showInput=function(){document.body.classList.remove('solving-pyra');document.body.classList.add('editing-pyra');$('solveView').hidden=true;$('inputView').hidden=false;window.renderInput();persistProgress(false);};
   window.solve=async function(){
     window.setValidation();const basic=window.validateBasic();if(basic){window.setValidation(basic);return;}const start=window.toStringState();$('solveBtn').disabled=true;$('solveBtn').textContent='Ich prüfe …';window.setStatus('Ich prüfe den ganzen Tetraeder und suche eine kurze Lösung …','busy');
-    try{const path=await solveInWorker(start);if(path===null){window.setValidation('So kann ein echter Rubik Tetraeder nicht aussehen. Prüfe die Farben und die Ausrichtung der vier Flächen.');window.setStatus('Dieser Tetraeder-Zustand ist physikalisch nicht erreichbar.','error');clearProgress();return;}if(!Core.verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=Core.buildStates(start,path);state.step=0;window.setStatus(path.length?`Lösung verifiziert: ${path.length} Züge.`:'Der Tetraeder ist schon vollständig gelöst.','ok');window.showSolve();}
+    try{const path=await solveInWorker(start);if(path===null){const mirrored=Core.mirrorInputFace(start,3);let mirrorPath=null;try{mirrorPath=await solveInWorker(mirrored);}catch{}const mirrorValid=mirrorPath!==null&&Core.verifySolution(mirrored,mirrorPath);window.setValidation(api.impossibleStateMessage(mirrorValid));window.setStatus('Dieser Tetraeder-Zustand ist physikalisch nicht erreichbar.','error');clearProgress();return;}if(!Core.verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=Core.buildStates(start,path);state.step=0;window.setStatus(path.length?`Lösung verifiziert: ${path.length} Züge.`:'Der Tetraeder ist schon vollständig gelöst.','ok');window.showSolve();}
     catch(e){console.error(e);window.setValidation('Interner Prüffehler. Die Lösung wurde nicht angezeigt.');window.setStatus('Lösung konnte nicht verifiziert werden.','error');}
     finally{$('solveBtn').disabled=false;$('solveBtn').textContent='Tetraeder lösen';}
   };

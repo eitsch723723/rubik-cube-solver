@@ -26,10 +26,15 @@
     [0,1,6,2,3,7,4,5,8],
     [0,1,6,2,3,7,4,8,5],
     [0,1,6,2,7,3,4,8,5],
-    // U is shown with the rear corner at the top and the former front edge
-    // at the bottom. This is a different viewing orientation than the 3D face.
-    [0,2,6,1,8,5,4,7,3]
+    // Viewed from outside, U is ordered rear corner -> former front-right ->
+    // former front-left. Thus the former front-right corner appears at the
+    // bottom-left of the upright input triangle. Reversing these two ends
+    // mirrors a real underside and can turn a reachable puzzle into an
+    // apparently impossible solver state.
+    [0,1,6,2,7,3,4,8,5]
   ];
+  // Visible triangle indices after reflecting the upright input horizontally.
+  const INPUT_HORIZONTAL_MIRROR=[0,2,1,5,4,3,6,8,7];
   const INPUT_TO_SOLVER=SOLVER_TO_INPUT.map(mapping=>{
     const inverse=Array(9);
     mapping.forEach((inputIndex,solverIndex)=>{inverse[inputIndex]=solverIndex;});
@@ -38,6 +43,15 @@
 
   function inputIndexToSolver(faceIndex,inputIndex){return INPUT_TO_SOLVER[faceIndex][inputIndex];}
   function solverIndexToInput(faceIndex,solverIndex){return SOLVER_TO_INPUT[faceIndex][solverIndex];}
+  function mirrorInputFace(state,faceIndex){
+    if(typeof state!=='string'||state.length!==36||!Number.isInteger(faceIndex)||faceIndex<0||faceIndex>3)throw new Error('invalid input face mirror');
+    const out=state.split(''),offset=faceIndex*9;
+    for(let inputIndex=0;inputIndex<9;inputIndex++){
+      const target=INPUT_TO_SOLVER[faceIndex][inputIndex],source=INPUT_TO_SOLVER[faceIndex][INPUT_HORIZONTAL_MIRROR[inputIndex]];
+      out[offset+target]=state[offset+source];
+    }
+    return out.join('');
+  }
 
   function cycle(a,x,y,z){const t=a[x];a[x]=a[y];a[y]=a[z];a[z]=t;}
   function quarterMain(s,face){
@@ -152,5 +166,5 @@
     return goalsFor(start).includes(s);
   }
   function buildStates(start,moves){const out=[start];let s=start;for(const m of moves){s=applyMove(s,m);out.push(s);}return out;}
-  return {MAIN_MOVES,TIP_MOVES,MOVES,SOLVED,KNOWN,INVALID,TIP_CYCLES,TIP_POSITIONS,BODY_POSITIONS,SOLVER_TO_GEOM,SOLVER_TO_INPUT,INPUT_TO_SOLVER,inputIndexToSolver,solverIndexToInput,quarterMain,quarterTip,applyMove,inverse,goalsFor,bodyKey,solveMainBody,solveTips,solveFull,solveBidirectional,verifySolution,buildStates};
+  return {MAIN_MOVES,TIP_MOVES,MOVES,SOLVED,KNOWN,INVALID,TIP_CYCLES,TIP_POSITIONS,BODY_POSITIONS,SOLVER_TO_GEOM,SOLVER_TO_INPUT,INPUT_TO_SOLVER,INPUT_HORIZONTAL_MIRROR,inputIndexToSolver,solverIndexToInput,mirrorInputFace,quarterMain,quarterTip,applyMove,inverse,goalsFor,bodyKey,solveMainBody,solveTips,solveFull,solveBidirectional,verifySolution,buildStates};
 });

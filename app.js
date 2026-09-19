@@ -6,7 +6,7 @@ const FACES=[
   {name:'Vorne',short:'V',note:'Halte eine Spitze nach oben. Diese Dreiecksfläche zeigt zu dir.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Halte eine Spitze nach oben. Die Fläche „Vorne“ zeigt direkt zu dir.'},
   {name:'Links',short:'L',note:'Drehe den ganzen Tetraeder nach rechts, bis die linke Fläche zu dir zeigt. Die obere Spitze bleibt oben.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Drehe den ganzen Tetraeder nach rechts. Die obere Spitze bleibt oben und „Links“ zeigt zu dir.'},
   {name:'Rechts',short:'R',note:'Gehe zurück zur Vorderseite und drehe nach links, bis die rechte Fläche zu dir zeigt. Die obere Spitze bleibt oben.',topLabel:'Spitze oben',bottomLabel:'Fläche zeigt zu dir',help:'Gehe zurück zur Vorderseite und drehe den ganzen Tetraeder nach links. Die obere Spitze bleibt oben und „Rechts“ zeigt zu dir.'},
-  {name:'Unten',short:'U',note:'Schau direkt auf die Unterseite. Das Dreieck bleibt mit der Spitze nach oben: Die einzelne hintere Ecke ist oben, die frühere Vorderkante liegt unten bei dir.',topLabel:'Hintere Ecke',bottomLabel:'Frühere Vorderkante · bei dir',help:'Das Dreieck steht nicht auf der Spitze. Die einzelne hintere Ecke zeigt nach oben; die frühere Vorderkante liegt unten bei dir.'}
+  {name:'Unten',short:'U',note:'Kippe den Tetraeder von Vorne zur Unterseite und schau von außen darauf. Die hintere Ecke bleibt oben. Unten links liegt die frühere rechte V-Ecke, unten rechts die frühere linke V-Ecke.',topLabel:'Hintere Ecke',bottomLabel:'links: frühere V-Ecke rechts · rechts: frühere V-Ecke links',help:'Hebe die frühere Vorderkante an und kippe die obere Spitze von dir weg. Von außen gesehen liegt die frühere rechte V-Ecke nun links und die frühere linke V-Ecke rechts.'}
 ];
 const PALETTE={green:{label:'Grün',hex:'#079455',code:'g'},red:{label:'Rot',hex:'#d92d20',code:'r'},blue:{label:'Blau',hex:'#175cd3',code:'b'},yellow:{label:'Gelb',hex:'#ffd500',code:'y'}};
 const COLOR_KEYS=Object.keys(PALETTE);
@@ -16,7 +16,7 @@ function setStatus(text,kind=''){$('statusText').textContent=text;$('statusDot')
 function setValidation(text='',kind='error'){const e=$('validation');e.textContent=text;e.className='validation'+(text?' show '+kind:'');}
 function counts(){const c=Object.fromEntries(COLOR_KEYS.map(k=>[k,0]));state.faces.flat().forEach(x=>{if(x)c[x]++;});return c;}
 function allFilled(){return state.faces.every(f=>f.every(Boolean));}
-const INPUT_STORAGE_KEY='rubik-pyra-separate-v3';
+const INPUT_STORAGE_KEY='rubik-pyra-separate-v4';
 function save(){try{localStorage.setItem(INPUT_STORAGE_KEY,JSON.stringify({faces:state.faces,currentFace:state.currentFace,selected:state.selected}));}catch{}}
 function load(){try{const x=JSON.parse(localStorage.getItem(INPUT_STORAGE_KEY)||'null');if(!x)return;if(Array.isArray(x.faces)&&x.faces.length===4)x.faces.forEach((f,i)=>{if(Array.isArray(f)&&f.length===9)state.faces[i]=f.map(c=>COLOR_KEYS.includes(c)?c:null);});if(Number.isInteger(x.currentFace)&&x.currentFace>=0&&x.currentFace<4)state.currentFace=x.currentFace;if(COLOR_KEYS.includes(x.selected)||x.selected==='erase')state.selected=x.selected;}catch{}}
 
@@ -76,9 +76,17 @@ function drawHoldGuide(faceIndex){
   lines.forEach(([a,b])=>{const line=el('line',{x1:a.split(',')[0],y1:a.split(',')[1],x2:b.split(',')[0],y2:b.split(',')[1],stroke:'#91bfee','stroke-width':2});svg.appendChild(line);});
   const badge=el('circle',{cx:120,cy:112,r:24,fill:'#fff',stroke:'#087ff5','stroke-width':3});svg.appendChild(badge);
   const letter=el('text',{x:120,y:120,'text-anchor':'middle','font-size':24,'font-weight':900,fill:'#095fc8'});letter.textContent=face.short;svg.appendChild(letter);
-  const top=el('text',{x:120,y:19,'text-anchor':'middle','font-size':faceIndex===3?12:13,'font-weight':800,fill:'#344054'});top.textContent=face.topLabel;svg.appendChild(top);
-  const bottom=el('text',{x:120,y:181,'text-anchor':'middle','font-size':faceIndex===3?12:13,'font-weight':800,fill:'#344054'});bottom.textContent=face.bottomLabel;svg.appendChild(bottom);
-  if(faceIndex===3){const arrow=el('path',{d:'M120 160 V171 M114 166 L120 172 L126 166',fill:'none',stroke:'#087ff5','stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round'});svg.appendChild(arrow);}
+  const top=el('text',{x:120,y:faceIndex===3?28:19,'text-anchor':'middle','font-size':faceIndex===3?11:13,'font-weight':800,fill:'#344054'});top.textContent=face.topLabel;svg.appendChild(top);
+  if(faceIndex===3){
+    const from=el('circle',{cx:72,cy:12,r:10,fill:'#fff',stroke:'#087ff5','stroke-width':2}),to=el('circle',{cx:168,cy:12,r:10,fill:'#fff',stroke:'#087ff5','stroke-width':2});svg.append(from,to);
+    const fromText=el('text',{x:72,y:16,'text-anchor':'middle','font-size':11,'font-weight':900,fill:'#095fc8'});fromText.textContent='V';svg.appendChild(fromText);
+    const turn=el('path',{d:'M88 13 C105 1 135 1 152 13 M146 7 L153 13 L145 17',fill:'none',stroke:'#087ff5','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'});svg.appendChild(turn);
+    const toText=el('text',{x:168,y:16,'text-anchor':'middle','font-size':11,'font-weight':900,fill:'#095fc8'});toText.textContent='U';svg.appendChild(toText);
+    const left=el('text',{x:14,y:181,'text-anchor':'start','font-size':10,'font-weight':800,fill:'#344054'});left.textContent='links: V-Ecke rechts';svg.appendChild(left);
+    const right=el('text',{x:226,y:181,'text-anchor':'end','font-size':10,'font-weight':800,fill:'#344054'});right.textContent='rechts: V-Ecke links';svg.appendChild(right);
+  }else{
+    const bottom=el('text',{x:120,y:181,'text-anchor':'middle','font-size':13,'font-weight':800,fill:'#344054'});bottom.textContent=face.bottomLabel;svg.appendChild(bottom);
+  }
 }
 function startChooserAnimation(){
   if(state.previewAnim)return;let stopped=false;state.previewAnim={stop:()=>stopped=true};
@@ -108,9 +116,10 @@ function renderInput(){renderTabs();renderTriangle();renderPalette();renderCount
 function toStringState(){return state.faces.flat().map(k=>k?PALETTE[k].code:'?').join('');}
 function fromStringState(s){const byCode=Object.fromEntries(COLOR_KEYS.map(k=>[PALETTE[k].code,k]));state.faces=Array.from({length:4},(_,fi)=>Array.from({length:9},(_,i)=>byCode[s[fi*9+i]]));state.currentFace=0;state.selected='green';save();renderInput();}
 function validateBasic(){if(!allFilled())return 'Es fehlen noch Farben.';const c=counts(),bad=COLOR_KEYS.filter(k=>c[k]!==9);if(bad.length)return 'Jede der vier Farben muss genau 9-mal vorkommen.';return null;}
+function impossibleStateMessage(undersideMirrored=false){return undersideMirrored?'Die Unterseite ist möglicherweise anders herum eingegeben. Prüfe links und rechts an der früheren Vorderkante.':'Dieser Zustand ist physikalisch nicht erreichbar. Prüfe, ob du alle vier Seiten genau in der gezeigten Ausrichtung eingegeben hast.';}
 async function solve(){
   setValidation();const basic=validateBasic();if(basic){setValidation(basic);return;}const start=toStringState();setStatus('Ich prüfe, ob dieser Tetraeder erreichbar ist …','busy');$('solveBtn').disabled=true;await new Promise(r=>setTimeout(r,30));
-  try{const path=Core.solveBidirectional(start,11);if(path===null){setValidation('Dieser Zustand ist physikalisch nicht erreichbar. Prüfe, ob du alle vier Seiten genau in der gezeigten Ausrichtung eingegeben hast.');setStatus('Der Tetraeder-Zustand ist physikalisch nicht erreichbar.','error');return;}if(!Core.verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=Core.buildStates(start,path);state.step=0;setStatus(path.length?`Lösung verifiziert: ${path.length} Züge.`:'Der Tetraeder ist schon gelöst.','ok');showSolve();}
+  try{const path=Core.solveBidirectional(start,11);if(path===null){const mirrored=Core.mirrorInputFace(start,3),mirrorPath=Core.solveBidirectional(mirrored,11),mirrorValid=mirrorPath!==null&&Core.verifySolution(mirrored,mirrorPath);setValidation(impossibleStateMessage(mirrorValid));setStatus('Der Tetraeder-Zustand ist physikalisch nicht erreichbar.','error');return;}if(!Core.verifySolution(start,path))throw new Error('verification');state.solution=path;state.states=Core.buildStates(start,path);state.step=0;setStatus(path.length?`Lösung verifiziert: ${path.length} Züge.`:'Der Tetraeder ist schon gelöst.','ok');showSolve();}
   catch(e){console.error(e);setValidation('Interner Prüffehler. Die Lösung wurde nicht angezeigt.');setStatus('Lösung konnte nicht verifiziert werden.','error');}
   finally{$('solveBtn').disabled=false;}
 }
@@ -128,7 +137,7 @@ function renderSolvePreview(){const m=state.solution[state.step];drawScene($('so
 function renderFlat(){const h=$('flatPyra');h.innerHTML='';const s=state.states[state.step]||Core.SOLVED;for(let f=0;f<4;f++){const svg=el('svg',{viewBox:'0 0 346.41 300'});svg.classList.add('mini-face-svg');TRIANGLES.forEach((pts,inputIndex)=>{const solverIndex=Core.inputIndexToSolver(f,inputIndex),code=s[f*9+solverIndex],k=COLOR_KEYS.find(k=>PALETTE[k].code===code);svg.appendChild(el('polygon',{points:polyPoints(pts),fill:PALETTE[k]?.hex||'#eef2f6',stroke:'#101828','stroke-width':5}));});h.appendChild(svg);}}
 function showSolve(){$('inputView').hidden=true;$('solveView').hidden=false;renderSolution();}
 function showInput(){$('solveView').hidden=true;$('inputView').hidden=false;renderInput();}
-function reset(){state.faces=Array.from({length:4},()=>Array(9).fill(null));state.currentFace=0;state.selected='green';state.solution=[];state.states=[];state.step=0;state.testMode=null;try{localStorage.removeItem(INPUT_STORAGE_KEY);localStorage.removeItem('rubik-pyra-separate-v2');}catch{}setValidation();setStatus('Bereit.');showInput();}
+function reset(){state.faces=Array.from({length:4},()=>Array(9).fill(null));state.currentFace=0;state.selected='green';state.solution=[];state.states=[];state.step=0;state.testMode=null;try{localStorage.removeItem(INPUT_STORAGE_KEY);localStorage.removeItem('rubik-pyra-separate-v3');localStorage.removeItem('rubik-pyra-separate-v2');}catch{}setValidation();setStatus('Bereit.');showInput();}
 
 $('chooseCube').onclick=()=>{location.href=CUBE_URL;};
 $('choosePyra').onclick=()=>{$('chooser').hidden=true;$('pyraApp').hidden=false;showInput();};
@@ -146,4 +155,4 @@ $('knownTest').onclick=()=>{fromStringState(Core.KNOWN);setValidation("Referenzt
 $('solvedTest').onclick=()=>{fromStringState(Core.SOLVED);setValidation('Gelöster Referenzzustand geladen.','success');setStatus('Gelöster Zustand geladen.','ok');};
 $('invalidTest').onclick=()=>{fromStringState(Core.INVALID);setValidation('Unmöglicher Zustand geladen: zwei Spitzen-Sticker wurden vertauscht.','success');setStatus('Fehlertest geladen.');};
 load();renderInput();setStatus('Bereit.');startChooserAnimation();
-window.__PYRA_TEST__={Core,TRIANGLES,state,toStringState};
+window.__PYRA_TEST__={Core,TRIANGLES,state,toStringState,impossibleStateMessage};
