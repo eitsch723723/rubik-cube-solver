@@ -93,9 +93,11 @@ async function expectTetraInputFits(page) {
   assert(result.noPageScroll, 'Tetraeder input page requires scrolling');
   assert(result.allVisible, 'A central Tetraeder input control is outside the viewport');
   assert(result.panelFits, 'Tetraeder input panel clips its content');
-  assert(result.orientation.includes('Spitze nach oben'), 'Unten orientation does not explain the upright triangle');
+  assert(result.orientation.includes('hintere Ecke bleibt oben'), 'Unten orientation does not keep the rear corner at the top');
+  assert(result.orientation.includes('Unten links liegt die frühere rechte V-Ecke'), 'Unten left endpoint is not identified');
+  assert(result.orientation.includes('unten rechts die frühere linke V-Ecke'), 'Unten right endpoint is not identified');
   assert(result.topLabel === 'Hintere Ecke', 'Unten top orientation label is missing');
-  assert(result.bottomLabel.includes('Frühere Vorderkante'), 'Unten front-edge label is missing');
+  assert(result.bottomLabel.includes('links: frühere V-Ecke rechts'), 'Unten front-edge handedness label is missing');
 }
 
 async function testCube(page) {
@@ -132,18 +134,13 @@ async function testTetra(page) {
 
   const physicalInput = await page.evaluate(() => {
     const api = window.__PYRA_TEST__;
-    const expectedInputToSolver = [
-      [0,1,3,4,6,7,2,5,8],
-      [0,1,3,4,6,8,2,5,7],
-      [0,1,3,5,6,8,2,4,7],
-      [0,3,1,8,6,5,2,7,4]
-    ];
+    // Literal observations from a real puzzle in visible TRIANGLES order.
+    const visibleFaces = ['ggbggrggr','yyyyybyyb','rrbyrbryb','ggrbbrgbr'];
+    const expectedState = 'gggbgggrryyyyyyybbrrrbyyrbbgggrbbbrr';
     const paletteIndex = { g: 0, r: 1, b: 2, y: 3 };
-    const moves = ['U','R',"L'",'B',"U'",'L',"R'",'B','u',"r'",'l','b'];
-    const solverState = moves.reduce((value, move) => api.Core.applyMove(value, move), api.Core.SOLVED);
     for (let face = 0; face < 4; face++) {
       document.querySelectorAll('.face-tab')[face].click();
-      const displayCodes = expectedInputToSolver[face].map(solverIndex => solverState[face * 9 + solverIndex]);
+      const displayCodes = visibleFaces[face];
       for (const code of Object.keys(paletteIndex)) {
         document.querySelectorAll('.palette-btn')[paletteIndex[code]].click();
         for (let inputIndex = 0; inputIndex < 9; inputIndex++) {
@@ -151,12 +148,14 @@ async function testTetra(page) {
         }
       }
     }
-    return { solverState, enteredState: api.toStringState() };
+    return { expectedState, enteredState: api.toStringState() };
   });
-  assert(physicalInput.enteredState === physicalInput.solverState, 'Visible Tetraeder input is mapped to the wrong solver positions');
+  assert(physicalInput.enteredState === physicalInput.expectedState, 'Real visible Tetraeder input is mapped to the wrong solver positions');
   await page.locator('#solveBtn').click();
   await page.locator('#solveView').waitFor({ state: 'visible', timeout: 30000 });
   assert((await page.locator('#statusText').innerText()).includes('Lösung verifiziert'), 'Physically reachable visible input was rejected');
+  const physicalVerified = await page.evaluate(() => { const api = window.__PYRA_TEST__; return api.Core.verifySolution(api.state.states[0], api.state.solution); });
+  assert(physicalVerified, 'Real physical fixture solution did not verify');
 
   await page.setViewportSize({ width: 402, height: 740 });
   await resetRootState(page, 'tetra-full');
@@ -216,7 +215,7 @@ async function testStaticAssets(context) {
   const sw = await context.request.get(`${BASE}sw.js?smoke=${Date.now()}`);
   assert(sw.ok(), `Service worker request failed: ${sw.status()}`);
   const swText = await sw.text();
-  assert(swText.includes('rubik-puzzle-pwa-v8'), 'Combined-app service worker is not deployed');
+  assert(swText.includes('rubik-puzzle-pwa-v9'), 'Combined-app service worker is not deployed');
   const worker = await context.request.get(`${BASE}cube/solver-worker.js?smoke=${Date.now()}`);
   assert(worker.ok(), `Cube worker request failed: ${worker.status()}`);
   const workerText = await worker.text();

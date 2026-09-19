@@ -16,17 +16,11 @@ async function loadPyraTest(page,button){
   await page.locator(button).click();
   await expect(page.locator('#solveBtn')).toBeVisible();
 }
-const INPUT_TO_SOLVER=[
-  [0,1,3,4,6,7,2,5,8],
-  [0,1,3,4,6,8,2,5,7],
-  [0,1,3,5,6,8,2,4,7],
-  [0,3,1,8,6,5,2,7,4]
-];
 const PALETTE_INDEX={g:0,r:1,b:2,y:3};
-async function enterPhysicalTetraState(page,solverState){
+async function enterVisibleTetraFaces(page,visibleFaces){
   for(let face=0;face<4;face++){
     await page.locator('.face-tab').nth(face).click();
-    const displayCodes=INPUT_TO_SOLVER[face].map(solverIndex=>solverState[face*9+solverIndex]);
+    const displayCodes=visibleFaces[face];
     for(const code of Object.keys(PALETTE_INDEX)){
       await page.locator('.palette-btn').nth(PALETTE_INDEX[code]).click();
       for(let inputIndex=0;inputIndex<9;inputIndex++)if(displayCodes[inputIndex]===code){
@@ -34,6 +28,12 @@ async function enterPhysicalTetraState(page,solverState){
       }
     }
   }
+}
+async function enterPhysicalTetraState(page,solverState){
+  const visibleFaces=await page.evaluate(s=>Array.from({length:4},(_,face)=>
+    Array.from({length:9},(_,inputIndex)=>s[face*9+window.__PYRA_TEST__.Core.inputIndexToSolver(face,inputIndex)]).join('')
+  ),solverState);
+  await enterVisibleTetraFaces(page,visibleFaces);
 }
 async function expectSolveFitsViewport(page){
   await expect(page.locator('#solveView')).toBeVisible();
@@ -146,6 +146,29 @@ test('Tetraeder impossible state is rejected',async({page})=>{
   await expect(page.locator('#testResult')).toContainText('Fehlertest bestanden');
 });
 
+test('Real physical Pyraminx fixture is accepted and its solution verifies',async({page})=>{
+  await openPyra(page);
+  // Literal observations in TRIANGLES order; never derive this fixture from
+  // Core.applyMove or from another solver state.
+  const realPhysicalFixture=['ggbggrggr','yyyyybyyb','rrbyrbryb','ggrbbrgbr'];
+  await enterVisibleTetraFaces(page,realPhysicalFixture);
+  expect(await page.evaluate(()=>window.__PYRA_TEST__.toStringState())).toBe('gggbgggrryyyyyyybbrrrbyyrbbgggrbbbrr');
+  await page.locator('#solveBtn').click();
+  await expect(page.locator('#solveView')).toBeVisible();
+  await expect(page.locator('#statusText')).toContainText('Lösung verifiziert');
+  expect(await page.evaluate(()=>{const api=window.__PYRA_TEST__,start=api.state.states[0];return api.state.solution!==null&&api.state.solution.length>0&&api.Core.verifySolution(start,api.state.solution);})).toBe(true);
+});
+
+test('Horizontally reversed U input gets a targeted orientation hint',async({page})=>{
+  await openPyra(page);
+  await enterVisibleTetraFaces(page,['ggbggrggr','yyyyybyyb','rrbyrbryb','grgrbbgrb']);
+  await page.locator('#solveBtn').click();
+  await expect(page.locator('#statusText')).toContainText('physikalisch nicht erreichbar');
+  await expect(page.locator('#validation')).toContainText('Unterseite ist möglicherweise anders herum eingegeben');
+  await expect(page.locator('#validation')).toContainText('früheren Vorderkante');
+  await expect(page.locator('#solveView')).toBeHidden();
+});
+
 test('Reachable Tetraeder entered through all visible triangles is mapped and solved correctly',async({page})=>{
   await openPyra(page);
   const solverState=await page.evaluate(()=>{
@@ -203,11 +226,13 @@ test('Unten orientation keeps the triangle upright and explains the former front
   await page.setViewportSize({width:1180,height:820});
   await openPyra(page);
   await page.locator('.face-tab').nth(3).click();
-  await expect(page.locator('#orientationText')).toContainText('Dreieck bleibt mit der Spitze nach oben');
+  await expect(page.locator('#orientationText')).toContainText('hintere Ecke bleibt oben');
+  await expect(page.locator('#orientationText')).toContainText('Unten links liegt die frühere rechte V-Ecke');
+  await expect(page.locator('#orientationText')).toContainText('unten rechts die frühere linke V-Ecke');
   await expect(page.locator('#triangleTopLabel')).toHaveText('Hintere Ecke');
-  await expect(page.locator('#triangleBottomLabel')).toContainText('Frühere Vorderkante');
-  await expect(page.locator('#holdHelp')).toContainText('steht nicht auf der Spitze');
-  await expect(page.locator('#holdPreview text')).toContainText(['U','Hintere Ecke','Frühere Vorderkante · bei dir']);
+  await expect(page.locator('#triangleBottomLabel')).toHaveText('links: frühere V-Ecke rechts · rechts: frühere V-Ecke links');
+  await expect(page.locator('#holdHelp')).toContainText('frühere rechte V-Ecke nun links');
+  await expect(page.locator('#holdPreview text')).toHaveText(['U','Hintere Ecke','V','U','links: V-Ecke rechts','rechts: V-Ecke links']);
   const orientation=await page.evaluate(()=>({
     face:document.querySelector('#triangleEditorWrap').dataset.face,
     transform:getComputedStyle(document.querySelector('#triangleEditor')).transform,
